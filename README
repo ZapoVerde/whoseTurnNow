@@ -1,11 +1,11 @@
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+[![Code Style: ESLint](https://img.shields.io/badge/code%20style-ESLint-563d7c.svg)](https://eslint.org/)
 
 ---
 
 # Whose Turn Now
 
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
-[![Code Style: ESLint](https://img.shields.io/badge/code%20style-ESLint-563d7c.svg)](https://eslint.org/)
 
 A lightweight, real-time, open-source utility for tracking whose turn it is. Manage your turn-based lists as easily and intuitively as a WhatsApp group.
 
