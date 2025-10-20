@@ -1,0 +1,46 @@
+# .github/workflows/ci.yml
+
+name: 'Whose Turn Now CI'
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build_and_test:
+    name: 'Build, Lint, and Test'
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Get the code from the repository
+      - name: 'Checkout code'
+        uses: actions/checkout@v4
+
+      # Step 2: Set up pnpm, our package manager
+      - name: 'Set up pnpm'
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8 # Use a recent version of pnpm
+
+      # Step 3: Set up the correct version of Node.js
+      - name: 'Set up Node.js'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm' # Cache our dependencies for faster runs
+
+      # Step 4: Install all project dependencies
+      - name: 'Install dependencies'
+        run: pnpm install
+
+      # Step 5: Run the linter for the "whoseturnnow" package
+      # This ensures code style is consistent.
+      - name: 'Run linter'
+        run: pnpm --filter @aianvil/whoseturnnow lint
+
+      # Step 6: Run the build command for the "whoseturnnow" package
+      # This ensures the code is valid and can be compiled.
+      - name: 'Run build'
+        run: pnpm --filter @aianvil/whoseturnnow build
