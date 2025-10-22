@@ -2,9 +2,102 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // STAGE 1 RULE: Users can only read and write their own user profile.
+
+    // =====================================================================
+    // Helper Functions
+    // These functions make the main rules more readable and reusable.
+    // =====================================================================
+
+    // Checks if the user is signed in.
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Checks if the requesting user is a participant in a given group.
+    function isMember(groupId) {
+      return isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.participantUids;
+    }
+
+    // Checks if the requesting user is an admin of a given group.
+    // It does this by finding their participant object in the group's roster.
+    function isAdmin(groupId) {
+      let groupData = get(/databases/$(database)/documents/groups/$(groupId)).data;
+      let userParticipant = groupData.participants.filter(p => p.uid == request.auth.uid)[0];
+      return isMember(groupId) && userParticipant.role == 'admin';
+    }
+
+    // Validates that a new group document is structured correctly upon creation.
+    // Ensures the creator is the first admin and all arrays are consistent.
+    function isValidNewGroup() {
+      let group = request.resource.data;
+      let creatorUid = request.auth.uid;
+      let creatorParticipant = group.participants[0];
+
+      return group.ownerUid == creatorUid
+          && group.participants.size() == 1
+          && creatorParticipant.uid == creatorUid
+          && creatorParticipant.role == 'admin'
+          && group.turnOrder.size() == 1
+          && group.turnOrder[0] == creatorParticipant.id
+          && group.participantUids.size() == 1
+          && group.participantUids[0] == creatorUid;
+    }
+    
+    // Enforces the "Last Admin" rule by ensuring any update to the participants
+    // list does not result in a group with zero administrators.
+    function newAdminCountIsAtLeastOne() {
+        return request.resource.data.participants.filter(p => p.role == 'admin').size() >= 1;
+    }
+
+    // =====================================================================
+    // Collection Rules
+    // =====================================================================
+
+    // --- Users Collection ---
+    // A user can only read and write their own profile document.
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // --- Groups Collection ---
+    match /groups/{groupId} {
+      // READ: Allowed if the user is a member of the group.
+      allow read: if isMember(groupId);
+
+      // CREATE: Allowed if the user is authenticated and the new group document
+      // is structured correctly with the creator as the first admin.
+      allow create: if isAuthenticated() && isValidNewGroup();
+      
+      // UPDATE: This is the most complex rule. It allows an update if:
+      // 1. The user is an admin AND the update does not violate the "Last Admin" rule.
+      // 2. The user is joining the group for the first time.
+      // 3. The user is leaving the group (and is not the last admin).
+      allow update: if (isAdmin(groupId) && newAdminCountIsAtLeastOne())
+                      || (isAuthenticated() && !isMember(groupId) && isMember(request.resource.id)) // User is joining
+                      || (isMember(groupId) && !isMember(request.resource.id) && newAdminCountIsAtLeastOne()); // User is leaving
+
+      // DELETE: Allowed only if the user is an admin of the group.
+      allow delete: if isAdmin(groupId);
+      
+      // --- Turn Log Sub-collection ---
+      match /turnLog/{logId} {
+        // READ: Allowed if the user is a member of the parent group.
+        allow read: if isMember(groupId);
+
+        // CREATE: Allowed if the user is a member. The transaction logic on the
+        // client is responsible for creating valid entries.
+        allow create: if isMember(groupId);
+
+        // UPDATE: Only allow an update if it's to set the 'isUndone' flag from
+        // false to true, and only an admin can do it. This makes the log immutable
+        // except for the undo action.
+        allow update: if isAdmin(groupId)
+                      && request.resource.data.isUndone == true
+                      && resource.data.isUndone == false;
+                      
+        // DELETE: Never allowed. The log is a permanent, immutable record.
+        allow delete: if false;
+      }
     }
   }
 }
