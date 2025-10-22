@@ -1,10 +1,11 @@
 /**
  * @file packages/whoseturnnow/src/features/auth/userRepository.spec.ts
- * @stamp {"ts":"2025-10-22T02:30:00Z"}
+ * @stamp {"ts":"2025-10-22T06:25:00Z"}
  * @test-target packages/whoseturnnow/src/features/auth/userRepository.ts
  * @description
  * Verifies the correctness of all user profile interactions, including
- * creation, fetching, name updates, and account deletion.
+ * creation, fetching, name updates, and account deletion logic. It also
+ * verifies the gatekeeper function for preventing orphaned groups.
  * @criticality
  * Critical (Reason: I/O & Concurrency Management, Security & Authentication Context)
  * @testing-layer Integration
@@ -15,7 +16,6 @@
  *     external_io: none # Mocks MUST prevent any actual I/O.
  */
 
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // --- Mocks & Imports ---
@@ -25,11 +25,16 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  collection,
+  query,
+  where,
+  getDocs,
 } from 'firebase/firestore';
 import { deleteUser } from 'firebase/auth';
 import { userRepository } from './userRepository';
-import { auth } from '../../lib/firebase'; // <-- We import the plain '{}' mock
+import { db, auth } from '../../lib/firebase';
 import type { AppUser } from './useAuthStore';
+import type { Group } from '../../types/group';
 
 // Get typed references to the globally mocked functions
 const mockDoc = vi.mocked(doc);
@@ -38,26 +43,123 @@ const mockSetDoc = vi.mocked(setDoc);
 const mockUpdateDoc = vi.mocked(updateDoc);
 const mockDeleteDoc = vi.mocked(deleteDoc);
 const mockDeleteUser = vi.mocked(deleteUser);
+const mockCollection = vi.mocked(collection);
+const mockQuery = vi.mocked(query);
+const mockWhere = vi.mocked(where);
+const mockGetDocs = vi.mocked(getDocs);
 
 describe('userRepository', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // THE FIX: The 'auth' object is just {}. Reset its currentUser property before each test.
-    // We use 'as any' to tell TypeScript it's okay to add this property for testing.
     (auth as any).currentUser = null;
+  });
+
+  describe('findBlockingGroup', () => {
+    it('should return the group name if the user is the sole admin', async () => {
+      // ARRANGE
+      const uid = 'user-last-admin';
+      const blockingGroup: Group = {
+        gid: 'group-1',
+        name: 'The Blocking Group',
+        icon: '🚫',
+        ownerUid: 'owner',
+        participants: [
+          { id: 'p-1', uid, role: 'admin', turnCount: 1, nickname: 'Admin' },
+          { id: 'p-2', uid: 'other-user', role: 'member', turnCount: 1, nickname: 'Member' },
+        ],
+        turnOrder: ['p-1', 'p-2'],
+        participantUids: [uid, 'other-user'],
+      };
+      mockGetDocs.mockResolvedValue({
+        docs: [{ data: () => blockingGroup }],
+      } as any);
+
+      // ACT
+      const result = await userRepository.findBlockingGroup(uid);
+
+      // ASSERT
+      expect(mockCollection).toHaveBeenCalledWith(db, 'groups');
+      expect(mockQuery).toHaveBeenCalled();
+      expect(mockWhere).toHaveBeenCalledWith('participantUids', 'array-contains', uid);
+      expect(result).toBe('The Blocking Group');
+    });
+
+    it('should return null if the user is an admin but not the only one', async () => {
+      // ARRANGE
+      const uid = 'user-co-admin';
+      const nonBlockingGroup: Group = {
+        gid: 'group-2',
+        name: 'Co-Admin Group',
+        icon: '🤝',
+        ownerUid: 'owner',
+        participants: [
+          { id: 'p-1', uid, role: 'admin', turnCount: 1, nickname: 'Admin1' },
+          { id: 'p-2', uid: 'other-admin', role: 'admin', turnCount: 1, nickname: 'Admin2' },
+        ],
+        turnOrder: ['p-1', 'p-2'],
+        participantUids: [uid, 'other-admin'],
+      };
+      mockGetDocs.mockResolvedValue({
+        docs: [{ data: () => nonBlockingGroup }],
+      } as any);
+
+      // ACT
+      const result = await userRepository.findBlockingGroup(uid);
+
+      // ASSERT
+      expect(mockCollection).toHaveBeenCalledWith(db, 'groups');
+      expect(result).toBeNull();
+    });
+
+    it('should return null if the user is a member but not an admin', async () => {
+      // ARRANGE
+      const uid = 'user-member-only';
+      const nonBlockingGroup: Group = {
+        gid: 'group-3',
+        name: 'Member Only Group',
+        icon: '👤',
+        ownerUid: 'owner',
+        participants: [
+          { id: 'p-1', uid: 'other-admin', role: 'admin', turnCount: 1, nickname: 'Admin' },
+          { id: 'p-2', uid, role: 'member', turnCount: 1, nickname: 'Member' },
+        ],
+        turnOrder: ['p-1', 'p-2'],
+        participantUids: [uid, 'other-admin'],
+      };
+      mockGetDocs.mockResolvedValue({
+        docs: [{ data: () => nonBlockingGroup }],
+      } as any);
+
+      // ACT
+      const result = await userRepository.findBlockingGroup(uid);
+
+      // ASSERT
+      expect(mockCollection).toHaveBeenCalledWith(db, 'groups');
+      expect(result).toBeNull();
+    });
+
+    it('should return null if the user is not in any groups', async () => {
+      // ARRANGE
+      const uid = 'user-no-groups';
+      mockGetDocs.mockResolvedValue({ docs: [] } as any);
+
+      // ACT
+      const result = await userRepository.findBlockingGroup(uid);
+
+      // ASSERT
+      expect(mockCollection).toHaveBeenCalledWith(db, 'groups');
+      expect(result).toBeNull();
+    });
   });
 
   describe('updateUserDisplayName', () => {
     it('should call updateDoc with the correct user data', async () => {
-      // ARRANGE
       const uid = 'user-to-update-123';
       const newDisplayName = 'New Name';
       mockUpdateDoc.mockResolvedValue(undefined);
 
-      // ACT
       await userRepository.updateUserDisplayName(uid, newDisplayName);
 
-      // ASSERT
       expect(mockDoc).toHaveBeenCalledWith({}, 'users', uid);
       expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
       const updatePayload = mockUpdateDoc.mock.calls[0][1];
@@ -67,17 +169,13 @@ describe('userRepository', () => {
 
   describe('deleteUserAccount', () => {
     it('should delete the firestore doc and the auth user', async () => {
-      // ARRANGE
       const mockUser = { uid: 'user-to-delete-456' };
-      // THE FIX: Directly set the currentUser property on our mocked auth object.
       (auth as any).currentUser = mockUser;
       mockDeleteDoc.mockResolvedValue(undefined);
       mockDeleteUser.mockResolvedValue(undefined);
 
-      // ACT
       await userRepository.deleteUserAccount();
 
-      // ASSERT
       expect(mockDoc).toHaveBeenCalledWith({}, 'users', mockUser.uid);
       expect(mockDeleteDoc).toHaveBeenCalledTimes(1);
       expect(mockDeleteUser).toHaveBeenCalledTimes(1);
@@ -85,10 +183,6 @@ describe('userRepository', () => {
     });
 
     it('should throw an error if no user is signed in', async () => {
-      // ARRANGE
-      // The beforeEach hook already sets currentUser to null.
-
-      // ACT & ASSERT
       await expect(userRepository.deleteUserAccount()).rejects.toThrow(
         'No user is currently signed in to delete.',
       );
@@ -99,9 +193,18 @@ describe('userRepository', () => {
 
   describe('getUserProfile', () => {
     it('should return a user profile when the document exists', async () => {
-      const mockUserData: AppUser = { uid: 'user-123', displayName: 'Test User', isAnonymous: false };
-      mockGetDoc.mockResolvedValue({ exists: () => true, data: () => mockUserData } as any);
+      const mockUserData: AppUser = {
+        uid: 'user-123',
+        displayName: 'Test User',
+        isAnonymous: false,
+      };
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        data: () => mockUserData,
+      } as any);
+
       const profile = await userRepository.getUserProfile('user-123');
+
       expect(mockDoc).toHaveBeenCalledWith({}, 'users', 'user-123');
       expect(mockGetDoc).toHaveBeenCalledTimes(1);
       expect(profile).toEqual(mockUserData);
@@ -109,7 +212,9 @@ describe('userRepository', () => {
 
     it('should return null when the document does not exist', async () => {
       mockGetDoc.mockResolvedValue({ exists: () => false } as any);
+
       const profile = await userRepository.getUserProfile('user-404');
+
       expect(mockDoc).toHaveBeenCalledWith({}, 'users', 'user-404');
       expect(mockGetDoc).toHaveBeenCalledTimes(1);
       expect(profile).toBeNull();
@@ -118,9 +223,15 @@ describe('userRepository', () => {
 
   describe('createUserProfile', () => {
     it('should call setDoc with the correct user data', async () => {
-      const newUser: AppUser = { uid: 'new-user-abc', displayName: 'Newbie', isAnonymous: true };
+      const newUser: AppUser = {
+        uid: 'new-user-abc',
+        displayName: 'Newbie',
+        isAnonymous: true,
+      };
       mockSetDoc.mockResolvedValue(undefined);
+
       await userRepository.createUserProfile(newUser);
+
       expect(mockDoc).toHaveBeenCalledWith({}, 'users', 'new-user-abc');
       expect(mockSetDoc).toHaveBeenCalledTimes(1);
       expect(mockSetDoc.mock.calls[0][1]).toEqual(newUser);

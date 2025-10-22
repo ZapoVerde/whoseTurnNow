@@ -52,7 +52,6 @@ export const SettingsScreen: React.FC = () => {
     severity: 'success' | 'error';
   } | null>(null);
 
-  // Sync local state if the user object changes in the store
   useEffect(() => {
     setDisplayName(user?.displayName || '');
   }, [user]);
@@ -65,7 +64,6 @@ export const SettingsScreen: React.FC = () => {
     setIsSaving(true);
     try {
       await userRepository.updateUserDisplayName(user.uid, displayName.trim());
-      // Update the user object in the global store to reflect the change immediately
       const updatedUser = { ...user, displayName: displayName.trim() };
       setAuthenticated(updatedUser);
       setFeedback({ message: 'Display name updated!', severity: 'success' });
@@ -78,11 +76,31 @@ export const SettingsScreen: React.FC = () => {
   };
 
   const handleDeleteAccount = async () => {
+    if (!user) return; // Guard for type safety
+
     setIsDeleting(true);
+    setFeedback(null); // Clear previous feedback
     try {
+      // --- NEW LOGIC: Call the gatekeeper first ---
+      const blockingGroup = await userRepository.findBlockingGroup(user.uid);
+
+      if (blockingGroup) {
+        // If a blocking group is found, show an error and stop.
+        setFeedback({
+          message: `Cannot delete account. You are the last admin of "${blockingGroup}". Please delete the group or promote another admin first.`,
+          severity: 'error',
+        });
+        setIsDeleting(false);
+        setIsDeleteDialogOpen(false); // Close the dialog
+        return; // Halt the function
+      }
+      // --- END NEW LOGIC ---
+
+      // If the check passes, proceed with the deletion as before.
       await userRepository.deleteUserAccount();
       // On success, the useFirebaseAuthListener will automatically handle the
       // state change to 'unauthenticated', triggering a redirect.
+
     } catch (error) {
       console.error('Failed to delete account:', error);
       setFeedback({

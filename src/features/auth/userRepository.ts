@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/auth/userRepository.ts
- * @stamp {"ts":"2025-10-21T14:00:00Z"}
+ * @stamp {"ts":"2025-10-22T06:20:00Z"}
  * @architectural-role Data Repository
  * @description
  * Encapsulates all Firestore and Auth interactions for the `users`
@@ -14,6 +14,7 @@
  *   - userRepository.createUserProfile: Creates a new user profile document.
  *   - userRepository.updateUserDisplayName: Updates a user's display name.
  *   - userRepository.deleteUserAccount: Deletes a user's profile and auth record.
+ *   - userRepository.findBlockingGroup: Checks if a user is the last admin of any group.
  * @contract
  *   assertions:
  *     purity: mutates # This module performs read/write operations on an external database.
@@ -21,10 +22,21 @@
  *     external_io: firestore, https_apis # Its purpose is to interact with Firestore and Firebase Auth services.
  */
 
-import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from 'firebase/firestore';
 import { deleteUser } from 'firebase/auth';
 import { db, auth } from '../../lib/firebase';
 import type { AppUser } from './useAuthStore';
+import type { Group } from '../../types/group';
 
 /**
  * Fetches a user profile document from Firestore based on their UID.
@@ -60,6 +72,34 @@ async function updateUserDisplayName(
 }
 
 /**
+ * Checks if a user is the sole admin of any group they are a member of.
+ * This is a client-side gatekeeper to prevent account deletion that would
+ * lead to orphaned groups.
+ * @param uid The UID of the user requesting deletion.
+ * @returns The name of the first blocking group found, otherwise null.
+ */
+async function findBlockingGroup(uid: string): Promise<string | null> {
+  const groupsRef = collection(db, 'groups');
+  // Query for all groups the user is a member of.
+  const q = query(groupsRef, where('participantUids', 'array-contains', uid));
+  const userGroupsSnap = await getDocs(q);
+
+  // Loop through the results to check their admin status in each group.
+  for (const doc of userGroupsSnap.docs) {
+    const group = doc.data() as Group;
+    const admins = group.participants.filter(p => p.role === 'admin');
+    // If there is only one admin and that admin's UID matches the user's...
+    if (admins.length === 1 && admins[0].uid === uid) {
+      // ... we have found a blocking group. Return its name immediately.
+      return group.name;
+    }
+  }
+
+  // If the loop completes, no blocking groups were found.
+  return null;
+}
+
+/**
  * Orchestrates the complete deletion of the currently authenticated user's account,
  * including their Firestore profile and their authentication record.
  */
@@ -90,4 +130,5 @@ export const userRepository = {
   createUserProfile,
   updateUserDisplayName,
   deleteUserAccount,
+  findBlockingGroup,
 };

@@ -1,11 +1,11 @@
 /**
  * @file packages/whoseturnnow/src/features/settings/SettingsScreen.spec.tsx
- * @stamp {"ts":"2025-10-22T02:40:00Z"}
+ * @stamp {"ts":"2025-10-22T06:35:00Z"}
  * @test-target packages/whoseturnnow/src/features/settings/SettingsScreen.tsx
  * @description
  * Verifies the end-to-end user flow for account management,
  * ensuring that display name changes and the high-friction account deletion
- * process trigger the correct repository functions.
+ * process trigger the correct repository functions and gatekeeper checks.
  * @criticality
  * Critical (Reason: Security & Authentication Context)
  * @testing-layer Integration
@@ -16,7 +16,7 @@
  *     external_io: none # Mocks MUST prevent any actual I/O.
  */
 
-import { render, screen } from '@testing-library/react'; // No longer need waitFor
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
@@ -35,6 +35,7 @@ import type { AppUser, AuthState } from '../auth/useAuthStore';
 const mockUseAuthStore = vi.mocked(useAuthStore);
 const mockUpdateUserDisplayName = vi.mocked(userRepository.updateUserDisplayName);
 const mockDeleteUserAccount = vi.mocked(userRepository.deleteUserAccount);
+const mockFindBlockingGroup = vi.mocked(userRepository.findBlockingGroup);
 
 describe('SettingsScreen', () => {
   const mockUser: AppUser = {
@@ -59,6 +60,8 @@ describe('SettingsScreen', () => {
     );
     mockUpdateUserDisplayName.mockResolvedValue(undefined);
     mockDeleteUserAccount.mockResolvedValue(undefined);
+    // Default to the non-blocking case
+    mockFindBlockingGroup.mockResolvedValue(null);
   });
 
   it('should update the display name and call the store action on success', async () => {
@@ -74,62 +77,77 @@ describe('SettingsScreen', () => {
     await user.click(saveButton);
 
     // ASSERT
-    // THE FIX: Instead of using waitFor, we await a 'findBy' query. This is the
-    // recommended way to test for results of async actions. We wait for the
-    // success message to appear in the snackbar.
     const successMessage = await screen.findByText('Display name updated!');
     expect(successMessage).toBeInTheDocument();
 
-    // Because the 'findBy' query succeeded, we now know for a fact that the
-    // async function completed, and we can synchronously assert on the mock calls.
-    expect(mockUpdateUserDisplayName).toHaveBeenCalledWith(
-      mockUser.uid,
-      newName,
-    );
+    expect(mockUpdateUserDisplayName).toHaveBeenCalledWith(mockUser.uid, newName);
     expect(mockAuthState.setAuthenticated).toHaveBeenCalledWith({
       ...mockUser,
       displayName: newName,
     });
   });
 
-  // The other two tests were already passing, but we will make them more robust
-  // by using findBy queries to wait for animations to settle.
-  it('should complete the high-friction deletion flow and call the repository', async () => {
+  it('should complete the high-friction deletion flow when not blocked', async () => {
     const user = userEvent.setup();
     render(<SettingsScreen />);
 
+    // ACT: Open dialog
     await user.click(screen.getByRole('button', { name: /Delete Account/i }));
-
-    // Use findBy to wait for the dialog to fully open
     const dialogTitle = await screen.findByText(/Are you absolutely sure/i);
     expect(dialogTitle).toBeInTheDocument();
 
+    // ACT: Enable button by typing
     const finalConfirmButton = screen.getByRole('button', { name: /Confirm Deletion/i });
     expect(finalConfirmButton).toBeDisabled();
-
     await user.type(screen.getByLabelText(/Type DELETE to confirm/i), 'DELETE');
-    expect(finalConfirmButton).toBeEnabled();
+    await waitFor(() => expect(finalConfirmButton).toBeEnabled());
 
+    // ACT: Confirm deletion
     await user.click(finalConfirmButton);
 
-    // Use waitFor for non-DOM related async assertions
-    await screen.findByRole('progressbar'); // Wait for spinner to appear
+    // ASSERT
+    expect(mockFindBlockingGroup).toHaveBeenCalledWith(mockUser.uid);
     expect(mockDeleteUserAccount).toHaveBeenCalledTimes(1);
   });
 
-  it('should display an error message if account deletion fails', async () => {
+  it('should BLOCK deletion and show a warning if the user is the last admin', async () => {
     const user = userEvent.setup();
+    // ARRANGE: Mock the gatekeeper to return a blocking group name
+    mockFindBlockingGroup.mockResolvedValue('Orphaned Group');
+    render(<SettingsScreen />);
+
+    // ACT: Go through the whole deletion flow
+    await user.click(screen.getByRole('button', { name: /Delete Account/i }));
+    await screen.findByText(/Are you absolutely sure/i);
+    await user.type(screen.getByLabelText(/Type DELETE to confirm/i), 'DELETE');
+    const finalConfirmButton = screen.getByRole('button', { name: /Confirm Deletion/i });
+    await waitFor(() => expect(finalConfirmButton).toBeEnabled());
+
+    await user.click(finalConfirmButton);
+
+    // ASSERT
+    const alert = await screen.findByText(/Cannot delete account. You are the last admin of "Orphaned Group"./i);
+    expect(alert).toBeInTheDocument();
+    
+    // Crucially, verify the destructive action was never called
+    expect(mockDeleteUserAccount).not.toHaveBeenCalled();
+  });
+
+  it('should display an error message if account deletion fails at the repository level', async () => {
+    const user = userEvent.setup();
+    // ARRANGE: Make the final step fail
     mockDeleteUserAccount.mockRejectedValue(new Error('Auth failed.'));
     render(<SettingsScreen />);
 
+    // ACT
     await user.click(screen.getByRole('button', { name: /Delete Account/i }));
-    
-    // Wait for the dialog to appear before typing
     const confirmationInput = await screen.findByLabelText(/Type DELETE to confirm/i);
     await user.type(confirmationInput, 'DELETE');
-    
-    await user.click(screen.getByRole('button', { name: /Confirm Deletion/i }));
+    const finalConfirmButton = screen.getByRole('button', { name: /Confirm Deletion/i });
+    await waitFor(() => expect(finalConfirmButton).toBeEnabled());
+    await user.click(finalConfirmButton);
 
+    // ASSERT
     const alert = await screen.findByText(/Failed to delete account/i);
     expect(alert).toBeInTheDocument();
     expect(mockDeleteUserAccount).toHaveBeenCalledTimes(1);
