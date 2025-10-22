@@ -129,39 +129,46 @@ describe('useGroupDetail', () => {
       completedAt: {} as any,
       participantName: 'Member',
       actorName: 'Member',
+      // NEW: This field is now required to match the updated type.
+      _participantUids: ['user-admin', 'user-member'],
     };
 
     it('should return null if there are no completed, non-undone logs', () => {
+      // The log is marked as undone, so no action should be available.
       setupMocks(mockAdminUser, mockBaseGroup, [{ ...mockLogEntry, isUndone: true }]);
       const { result } = renderHook(() => useGroupDetail('group-1'));
       expect(result.current.undoableAction).toBeNull();
     });
 
     it('should identify an action as undoable if the user is an admin', () => {
+      // The current user is an admin, so they can undo the action.
       setupMocks(mockAdminUser, mockBaseGroup, [mockLogEntry]);
       const { result } = renderHook(() => useGroupDetail('group-1'));
       expect(result.current.undoableAction).toEqual(mockLogEntry);
     });
 
     it('should identify an action as undoable if the user was the actor', () => {
-      setupMocks(mockMemberUser, mockBaseGroup, [mockLogEntry]); // User is the actor
+      // The current user was the actor who performed the action.
+      setupMocks(mockMemberUser, mockBaseGroup, [mockLogEntry]);
       const { result } = renderHook(() => useGroupDetail('group-1'));
       expect(result.current.undoableAction).toEqual(mockLogEntry);
     });
 
     it('should identify an action as undoable if the user was the subject of the turn', () => {
-      // Scenario: Admin completes a turn FOR a member. Member should be able to undo.
+      // Scenario: Admin completes a turn FOR a member. The member (subject) should be able to undo.
       const logByAdmin: TurnCompletedLog & { id: string } = {
         ...mockLogEntry,
         actorUid: 'user-admin', // Admin was the actor
       };
-      setupMocks(mockMemberUser, mockBaseGroup, [logByAdmin]); // Current user is the subject
+      // The current user is the member, who was the subject of the turn.
+      setupMocks(mockMemberUser, mockBaseGroup, [logByAdmin]);
       const { result } = renderHook(() => useGroupDetail('group-1'));
       expect(result.current.undoableAction).toEqual(logByAdmin);
     });
 
     it('should return null if a non-involved user tries to undo', () => {
-      setupMocks(mockOtherUser, mockBaseGroup, [mockLogEntry]); // "Other" user has no permissions
+      // A third-party user who is not an admin, actor, or subject should not be able to undo.
+      setupMocks(mockOtherUser, mockBaseGroup, [mockLogEntry]);
       const { result } = renderHook(() => useGroupDetail('group-1'));
       expect(result.current.undoableAction).toBeNull();
     });
@@ -169,20 +176,28 @@ describe('useGroupDetail', () => {
 
   describe('Action Handlers', () => {
     it('should call undoTurnTransaction when handleConfirm is triggered from undoDialog', async () => {
+        // ARRANGE
         const mockLogEntry: TurnCompletedLog & { id: string } = {
-            id: 'log-1', type: 'TURN_COMPLETED', participantId: 'p-member',
-            actorUid: 'user-member', isUndone: false, completedAt: {} as any,
-            participantName: 'Member', actorName: 'Member',
+            id: 'log-1',
+            type: 'TURN_COMPLETED',
+            participantId: 'p-member',
+            actorUid: 'user-member',
+            isUndone: false,
+            completedAt: {} as any,
+            participantName: 'Member',
+            actorName: 'Member',
+            // NEW: This field is now required to match the updated type.
+            _participantUids: ['user-admin', 'user-member'],
         };
+        
         setupMocks(mockAdminUser, mockBaseGroup, [mockLogEntry]);
         const { result } = renderHook(() => useGroupDetail('group-1'));
 
-        // Ensure the hook has identified an action to undo
+        // ASSERT PRE-CONDITION: Ensure the hook has identified an action to undo
         expect(result.current.undoableAction).not.toBeNull();
 
         // ACT: Call the confirm handler from the dialog state object
         await act(async () => {
-            // Note: handleConfirm also closes the dialog, which is the correct behavior.
             result.current.undoDialog.handleConfirm();
         });
 

@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/types/group.ts
- * @stamp {"ts":"2025-10-21T17:00:00Z"}
+ * @stamp {"ts":"2025-10-22T04:00:00Z"}
  * @architectural-role Type Definition
  * @description Defines the canonical data structures for the application's core domain, including `Group`, `TurnParticipant`, and all `LogEntry` variants.
  * @core-principles
@@ -124,6 +124,11 @@ export interface TurnCompletedLog {
    * and should be visually represented as such (e.g., struck-through).
    */
   isUndone?: boolean;
+  /**
+   * A denormalized snapshot of the parent group's `participantUids` array at the
+   * time of logging. This field exists solely to enable secure Firestore rule queries.
+   */
+  _participantUids: string[];
 }
 
 /**
@@ -147,6 +152,11 @@ export interface CountsResetLog {
    * A snapshot of the admin's name at the moment the action was initiated.
    */
   actorName: string;
+  /**
+   * A denormalized snapshot of the parent group's `participantUids` array at the
+   * time of logging. This field exists solely to enable secure Firestore rule queries.
+   */
+  _participantUids: string[];
 }
 
 /**
@@ -174,6 +184,11 @@ export interface TurnUndoneLog {
      * A snapshot of the name of the participant from the original turn that was undone.
      */
     originalParticipantName: string;
+    /**
+     * A denormalized snapshot of the parent group's `participantUids` array at the
+     * time of logging. This field exists solely to enable secure Firestore rule queries.
+     */
+    _participantUids: string[];
 }
 
 

@@ -46,15 +46,17 @@ const mockGroup: Group = {
 };
 
 const mockTurnLog: LogEntry[] = [
-  {
-    type: 'TURN_COMPLETED',
-    completedAt: null as any, // Firestore FieldValue is complex to mock
-    participantId: 'p-1',
-    participantName: 'Alice',
-    actorUid: 'u-1',
-    actorName: 'Alice',
-  },
-];
+    {
+      type: 'TURN_COMPLETED',
+      completedAt: null as any, // Firestore FieldValue is complex to mock
+      participantId: 'p-1',
+      participantName: 'Alice',
+      actorUid: 'u-1',
+      actorName: 'Alice',
+      // NEW: This field is now required to match the updated type.
+      _participantUids: ['u-1', 'owner-1'], 
+    },
+  ];
 
 describe('useGroupStore', () => {
   // Get the initial state to reset the store between tests

@@ -666,13 +666,15 @@ describe('groupsRepository', () => {
       const actor: AppUser = { uid: 'admin-user', displayName: 'Admin', isAnonymous: false };
       
       const logToUndo: TurnCompletedLog & { id: string } = {
-        id: 'log-to-undo-id', // The document ID of the original log
+        id: 'log-to-undo-id',
         type: 'TURN_COMPLETED',
         completedAt: {} as any,
         participantId: 'p-2', // Bob was the one who just took a turn
         participantName: 'Bob',
         actorUid: 'user-2',
         actorName: 'Bob',
+        // NEW: This field is now required to match the updated type.
+        _participantUids: ['user-1', 'user-2'], 
       };
 
       const initialState: Group = {
@@ -680,9 +682,9 @@ describe('groupsRepository', () => {
         participantUids: ['user-1', 'user-2'],
         participants: [
           { id: 'p-1', uid: 'user-1', nickname: 'Alice', role: 'member', turnCount: 5 },
-          { id: 'p-2', uid: 'user-2', nickname: 'Bob', role: 'member', turnCount: 6 },
+          { id: 'p-2', uid: 'user-2', nickname: 'Bob', role: 'member', turnCount: 6 }, // Bob's count is 6
         ],
-        turnOrder: ['p-1', 'p-2'],
+        turnOrder: ['p-1', 'p-2'], // Alice is next, Bob is at the end
       };
 
       const mockTransaction = {
@@ -707,27 +709,30 @@ describe('groupsRepository', () => {
         (call) => call[1] && 'turnOrder' in call[1],
       );
       
-      // FIX: Assert that the call is not undefined before using it.
       expect(groupUpdateCall).toBeDefined();
-      const groupUpdatePayload = groupUpdateCall![1]; // Use non-null assertion as it's now safe
+      const groupUpdatePayload = groupUpdateCall![1];
       
+      // Bob (p-2) should be moved back to the front
       expect(groupUpdatePayload.turnOrder).toEqual(['p-2', 'p-1']);
+      
+      // Bob's turn count should be decremented back to 5
       const revertedParticipant = groupUpdatePayload.participants.find((p: TurnParticipant) => p.id === 'p-2');
       expect(revertedParticipant.turnCount).toBe(5);
 
-      // 2. Verify the new 'TURN_UNDONE' log was created
+      // 2. Verify the new 'TURN_UNDONE' log was created with all fields
       const logSetCall = mockTransaction.set.mock.calls[0];
       const newLogPayload = logSetCall[1] as TurnUndoneLog;
       expect(newLogPayload.type).toBe('TURN_UNDONE');
       expect(newLogPayload.actorUid).toBe(actor.uid);
       expect(newLogPayload.originalParticipantName).toBe('Bob');
+      // NEW: Verify the denormalized UIDs were copied to the new log entry.
+      expect(newLogPayload._participantUids).toEqual(initialState.participantUids);
 
       // 3. Verify the original log was flagged as undone
       const originalLogUpdateCall = mockTransaction.update.mock.calls.find(
         (call) => call[1] && 'isUndone' in call[1],
       );
       
-      // FIX: Assert that the call is not undefined before using it.
       expect(originalLogUpdateCall).toBeDefined();
       expect(originalLogUpdateCall![1]).toEqual({ isUndone: true });
     });

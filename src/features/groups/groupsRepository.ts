@@ -183,6 +183,7 @@ export async function createGroup(options: {
         participantName: participantToMove.nickname || 'Unknown',
         actorUid: actor.uid,
         actorName: actor.displayName || 'Unknown',
+        _participantUids: groupData.participantUids, 
       };
       transaction.set(newLogRef, newLogEntry);
     });
@@ -261,6 +262,7 @@ export async function resetAllTurnCounts(
       completedAt: serverTimestamp(),
       actorUid: actor.uid,
       actorName: actor.displayName || 'Unknown Actor',
+      _participantUids: group.participantUids,
     };
     transaction.set(newLogRef, newLogEntry);
   });
@@ -424,6 +426,7 @@ export async function undoTurnTransaction(
           actorUid: actor.uid,
           actorName: actor.displayName || 'Unknown',
           originalParticipantName: logToUndo.participantName,
+          _participantUids: groupData.participantUids,
       };
 
       // --- Execute Atomic Writes ---
