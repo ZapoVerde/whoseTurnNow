@@ -44,6 +44,7 @@ vi.mock('firebase/auth', () => ({
   signInWithPopup: vi.fn(),
   GoogleAuthProvider: vi.fn(),
   signOut: vi.fn(),
+  deleteUser: vi.fn(),
 }));
 
 vi.mock('firebase/firestore', () => ({

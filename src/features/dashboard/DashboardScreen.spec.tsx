@@ -1,9 +1,18 @@
 /**
  * @file packages/whoseturnnow/src/features/dashboard/DashboardScreen.spec.tsx
+ * @stamp {"ts":"2025-10-22T02:42:00Z"}
  * @test-target packages/whoseturnnow/src/features/dashboard/DashboardScreen.tsx
- * @description Verifies the dashboard correctly displays a list of groups and that the list creation flow can be successfully initiated and completed.
- * @criticality Not Critical
+ * @description
+ * Verifies the dashboard correctly displays a list of groups, handles
+ * user navigation, and orchestrates the list creation flow.
+ * @criticality
+ * Not Critical
  * @testing-layer Integration
+ * @contract
+ *   assertions:
+ *     purity: read-only # This test file asserts on the state of mocked modules.
+ *     state_ownership: none
+ *     external_io: none # Mocks MUST prevent any actual I/O.
  */
 
 import { render, screen, act } from '@testing-library/react';
@@ -22,7 +31,6 @@ vi.mock('../groups/groupsRepository');
 vi.mock('../groups/CreateListDialog', () => ({
   CreateListDialog: vi.fn(({ open }) => (open ? <div>Create List Dialog Open</div> : null)),
 }));
-
 
 // --- Imports ---
 import { useNavigate } from 'react-router-dom';
@@ -44,9 +52,9 @@ const mockUser: AppUser = {
 };
 
 const mockGroups: Group[] = [
-    { gid: 'group-1', name: 'First Group', icon: '1️⃣', ownerUid: 'owner-1', participantUids: [mockUser.uid], participants: [], turnOrder: [] },
-    { gid: 'group-2', name: 'Second Group', icon: '2️⃣', ownerUid: 'owner-2', participantUids: [mockUser.uid], participants: [], turnOrder: [] },
-  ];
+  { gid: 'group-1', name: 'First Group', icon: '1️⃣', ownerUid: 'owner-1', participantUids: [mockUser.uid], participants: [], turnOrder: [] },
+  { gid: 'group-2', name: 'Second Group', icon: '2️⃣', ownerUid: 'owner-2', participantUids: [mockUser.uid], participants: [], turnOrder: [] },
+];
 
 describe('DashboardScreen', () => {
   const mockNavigate = vi.fn();
@@ -56,7 +64,7 @@ describe('DashboardScreen', () => {
     mockUseNavigate.mockReturnValue(mockNavigate);
     mockUseAuthStore.mockReturnValue(mockUser);
     // Default mock for getUserGroups to avoid hanging tests
-    mockGetUserGroups.mockReturnValue(() => {}); 
+    mockGetUserGroups.mockReturnValue(() => {});
   });
 
   it('should subscribe to and display the user groups', async () => {
@@ -75,7 +83,7 @@ describe('DashboardScreen', () => {
     await act(async () => {
       onUpdateCallback(mockGroups);
     });
-    
+
     // ASSERT
     // Verify that the names of the mock groups are now in the document
     expect(screen.getByText('First Group')).toBeInTheDocument();
@@ -114,7 +122,7 @@ describe('DashboardScreen', () => {
     const user = userEvent.setup();
     // Provide an empty list of groups initially
     mockGetUserGroups.mockImplementation((_userId, onUpdate) => {
-      onUpdate([]);
+      act(() => onUpdate([]));
       return () => {};
     });
     render(<DashboardScreen />);
@@ -127,5 +135,19 @@ describe('DashboardScreen', () => {
     // Our mock dialog renders this text when 'open' is true
     const dialog = await screen.findByText('Create List Dialog Open');
     expect(dialog).toBeInTheDocument();
+  });
+
+  it('should navigate to /settings when the settings icon is clicked', async () => {
+    // ARRANGE
+    const user = userEvent.setup();
+    render(<DashboardScreen />);
+
+    // ACT
+    const settingsButton = screen.getByRole('button', { name: /settings/i });
+    await user.click(settingsButton);
+
+    // ASSERT
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('/settings');
   });
 });
