@@ -1,15 +1,17 @@
 /**
  * @file packages/whoseturnnow/src/App.tsx
- * @stamp {"ts":"2025-10-22T18:10:00Z"}
+ * @stamp {"ts":"2025-10-23T08:16:00Z"}
  * @architectural-role Orchestrator
  * @description
- * The top-level React component that acts as the application's root router.
- * It uses a layout route to provide a persistent UI shell (`MainLayout`) for all
- * authenticated screens, ensuring consistent navigation.
+ * The top-level React component that serves as the application's composition
+ * root. It owns the primary routing logic and is responsible for initializing
+ * the global authentication listener, ensuring the user's session state is
+ * managed consistently across all public and private routes.
  * @core-principles
  * 1. IS the composition root for the entire React application.
- * 2. OWNS the top-level routing logic.
- * 3. DELEGATES the persistent UI shell to the `MainLayout` component.
+ * 2. OWNS the top-level routing logic for all entry points.
+ * 3. MUST initialize the application's authentication listener to ensure it is
+ *    active on all routes, including public ones like the invitation screen.
  * @api-declaration
  *   - default: The App React functional component.
  * @contract
@@ -26,7 +28,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { useAuthStore } from './features/auth/useAuthStore';
 import { useFirebaseAuthListener } from './features/auth/useFirebaseAuthListener';
 import { useRoutePreloader } from './shared/hooks/useRoutePreloader';
-import { MainLayout } from './shared/components/layout/MainLayout'; // Import the new layout
+import { MainLayout } from './shared/components/layout/MainLayout';
 import { NewUserHandshake } from './features/auth/NewUserHandshake';
 
 // --- Lazy-loaded Screen Components ---
@@ -57,7 +59,7 @@ const FullScreenLoader = () => (
 );
 
 const AuthenticatedRoutes: React.FC = () => {
-  useFirebaseAuthListener();
+  // --- THIS HOOK HAS BEEN MOVED TO THE App COMPONENT ---
   const authStatus = useAuthStore((state) => state.status);
 
   console.log(`[Router] Rendering with authStatus: '${authStatus}'`);
@@ -69,7 +71,6 @@ const AuthenticatedRoutes: React.FC = () => {
       return <FullScreenLoader />;
   }
 
-  // --- THIS IS THE NEW LOGIC ---
   if (authStatus === 'new-user') {
     return <NewUserHandshake />;
   }
@@ -82,7 +83,6 @@ const AuthenticatedRoutes: React.FC = () => {
       );
   }
   
-  // This now only runs for 'authenticated' status
   return (
       <Routes>
           <Route element={<MainLayout />}>
@@ -96,6 +96,12 @@ const AuthenticatedRoutes: React.FC = () => {
 };
 
 export const App: React.FC = () => {
+  // --- THIS IS THE FIX ---
+  // By placing the listener here, it is mounted once at the root of the
+  // application and remains active for all routes, including the public
+  // /join route, which resolves the deadlock.
+  useFirebaseAuthListener();
+
   return (
     <BrowserRouter>
       <Suspense fallback={<FullScreenLoader />}>

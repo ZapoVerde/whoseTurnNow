@@ -21,9 +21,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src", "vitest.setup.ts"],
-  "exclude": [
-    "**/*.spec.ts",
-    "**/*.spec.tsx"
-  ], // <-- ADD THIS EXCLUDE BLOCK
   "references": [{ "path": "./tsconfig.node.json" }]
 }

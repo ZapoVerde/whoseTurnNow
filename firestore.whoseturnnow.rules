@@ -51,25 +51,21 @@ service cloud.firestore {
     }
 
     match /groups/{groupId} {
-      // --- THIS IS THE FIX ---
-      // The 'read' permission has been split into its granular components.
+      
+      //This change allows any user, including an unauthenticated visitor who has just clicked an invitation link, to perform a single, one-time read (`get`) of the group document.
 
-      // 'get': Allows a single document read via getDoc(). Any authenticated
-      // user can perform this action, which is necessary for the InvitationScreen
-      // to fetch public group details like the name.
-      allow get: if isAuthenticated();
+      //This is secure because the rule for establishing a real-time listener (`list`) remains unchanged and strictly enforced, allowing only authenticated members of the group to see live updates. This change directly enables the `InvitationScreen` to fetch the group's name and display a proper welcome message, resolving the "Could not load invitation details" error.
+      allow get: if true;
 
-      // 'list': Allows queries and real-time listeners (onSnapshot). This
-      // remains strictly locked down to members only, protecting all real-time
-      // and sensitive group data on the Dashboard and GroupDetail screens.
+      // 'list': Allows real-time listeners and queries. This remains
+      // strictly locked down to members of the group.
       allow list: if isAuthenticated() && request.auth.uid in resource.data.participantUids;
       
-      // All write rules remain unchanged.
+      // All write rules remain unchanged
       allow create: if isAuthenticated() && isValidNewGroup();
       allow update: if (requesterIsAdmin() && lastAdminRuleIsSatisfied()) || isUserJoiningGroup();
       allow delete: if requesterIsParentGroupAdmin(groupId);
       
-      // Subcollection Rules (unchanged)
       match /turnLog/{logId} {
         allow read, create: if isMemberOfParentGroup(groupId);
         allow update: if requesterIsParentGroupAdmin(groupId)

@@ -42,7 +42,7 @@ export const MainLayout: React.FC = () => {
               edge="start"
               color="inherit"
               aria-label="back"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/')}
               sx={{ mr: 2 }}
             >
               <ArrowBackIcon />
