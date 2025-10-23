@@ -37,4 +37,29 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './vitest.setup.ts',
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // All firebase-related packages go into a dedicated 'vendor-firebase' chunk.
+          if (id.includes('firebase')) {
+            return 'vendor-firebase';
+          }
+          // All Material-UI related packages go into a 'vendor-mui' chunk.
+          if (id.includes('@mui')) {
+            return 'vendor-mui';
+          }
+          // All react-related packages (react, react-dom, react-router) go into 'vendor-react'.
+          if (
+            id.includes('react-router-dom') ||
+            id.includes('react-dom') ||
+            id.includes('react')
+          ) {
+            return 'vendor-react';
+          }
+        },
+      },
+    },
+  },
 });
+
