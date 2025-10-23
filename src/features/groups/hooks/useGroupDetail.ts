@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/hooks/useGroupDetail.ts
- * @stamp {"ts":"2025-10-23T11:05:00Z"}
+ * @stamp {"ts":"2025-10-23T06:05:00Z"}
  * @architectural-role Orchestrator
  * @description
  * The primary "Conductor" hook for the Group Detail feature. It composes all
@@ -15,12 +15,12 @@
  * @api-declaration
  *   - default: The `useGroupDetail` hook function.
  *   - returns: A comprehensive view model object containing all data, derived
- *     state, and actions required by the `GroupDetailScreen` component.
+ *     state, and actions (including invitation handlers) required by the UI.
  * @contract
  *   assertions:
- *     purity: mutates # This hook uses useEffect to orchestrate data loading.
- *     state_ownership: none # It reads from global stores but owns no global state slices.
- *     external_io: none # It delegates all I/O to other hooks.
+ *     purity: mutates
+ *     state_ownership: none
+ *     external_io: none
  */
 
 import { useEffect, useState, type MouseEvent } from 'react';
@@ -41,13 +41,11 @@ export function useGroupDetail(groupId: string | undefined) {
   const derivedState = useGroupDerivedState(group, user, turnLog);
 
   // 3. Delegate action handlers to the "Hands" hook
-  // --- FIX: Pass the 'group' object, which is now a required prop ---
   const actions = useGroupActions({ groupId, user, group, ...derivedState });
 
   // 4. Manage primitive UI state
   const groupMenu = useMenuState();
   const participantMenu = useMenuState();
-  // --- ADD THIS NEW STATE ---
   const iconPickerMenu = useMenuState();
   const deleteDialog = useDialogState(actions.handleConfirmDelete);
   const resetDialog = useDialogState(actions.handleConfirmReset);
@@ -75,6 +73,7 @@ export function useGroupDetail(groupId: string | undefined) {
 
   const handleCloseParticipantMenu = () => {
     participantMenu.handleClose();
+    // Delay clearing the selected participant to prevent menu content from disappearing during transition
     setTimeout(() => setSelectedParticipant(null), 150);
   };
 
@@ -94,26 +93,24 @@ export function useGroupDetail(groupId: string | undefined) {
 
   const handleCopyClaimLink = () => {
     if (selectedParticipant) {
-      actions.handleCopyClaimLink(selectedParticipant.id);
+      // The old handleTargetedInvite now serves this purpose.
+      actions.handleTargetedInvite(selectedParticipant.id);
     }
     handleCloseParticipantMenu();
   };
-
-  // --- ADD THIS NEW HANDLER ---
-  const handleIconSelect = (newIcon: string) => {
-    actions.handleUpdateGroupIcon(newIcon);
-    // No need to close the menu here, the popover closes itself on selection
-  };
-
+  
   // 7. Assemble and return the final, clean view model for the component
   return {
+    // Raw Data
     group,
     turnLog,
     isLoading,
     user,
 
+    // Derived State (from the "Brain")
     ...derivedState,
 
+    // Actions & Action-related State (from the "Hands")
     isSubmitting: actions.isSubmitting,
     feedback: actions.feedback,
     addParticipantForm: {
@@ -122,6 +119,7 @@ export function useGroupDetail(groupId: string | undefined) {
       handleSubmit: actions.handleAddParticipant,
     },
 
+    // Composed UI State
     groupMenu,
     participantMenu: {
       ...participantMenu,
@@ -129,19 +127,17 @@ export function useGroupDetail(groupId: string | undefined) {
       handleOpen: handleOpenParticipantMenu,
       handleClose: handleCloseParticipantMenu,
     },
-    // --- EXPOSE NEW STATE ---
     iconPickerMenu,
     resetDialog,
     deleteDialog,
     undoDialog,
 
+    // Actions that need to be composed with local UI state
     actions: {
       ...actions,
       handleRoleChange,
       handleRemoveParticipant,
       handleCopyClaimLink,
-      // --- EXPOSE NEW HANDLER ---
-      handleIconSelect,
     },
   };
 }

@@ -1,17 +1,17 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/GroupDetailScreen.tsx
- * @stamp {"ts":"2025-10-23T11:50:00Z"}
+ * @stamp {"ts":"2025-10-23T06:25:00Z"}
  * @architectural-role UI Component
  * @description
- * The top-level UI component for the Group Detail feature. It acts as a "dumb"
- * view that consumes the complete view model from the `useGroupDetail` hook and
- * renders the UI. It is also responsible for managing the `AppBar` state as a
- * side effect for its lifecycle.
+ * The top-level UI component for the Group Detail feature. It consumes the
+ * complete view model from the `useGroupDetail` hook and orchestrates the
+ * rendering of all sub-components, including the new role-aware action bar
+ * and contextual invitation UI.
  * @core-principles
  * 1. IS a "dumb" component that primarily composes other dumb children.
- * 2. MUST NOT contain any direct business logic; this is delegated to the `useGroupDetail` hook.
- * 3. OWNS the side effect of configuring the global `AppBar` for its specific context.
- * 4. MUST derive all of its rendered content from the view model provided by the `useGroupDetail` hook.
+ * 2. MUST NOT contain any direct business logic; this is delegated to its backing hooks.
+ * 3. OWNS the side effect of configuring the global `AppBar`.
+ * 4. MUST correctly wire up all actions from the view model to the appropriate child components.
  * @api-declaration
  *   - default: The `GroupDetailScreen` React functional component.
  * @contract
@@ -116,6 +116,7 @@ export const GroupDetailScreen: FC = () => {
         <ParticipantList
           participants={orderedParticipants}
           onParticipantClick={participantMenu.handleOpen}
+          onInviteToClaim={actions.handleTargetedInvite}
         />
         {isAdmin && (
           <AddParticipantForm
@@ -128,18 +129,15 @@ export const GroupDetailScreen: FC = () => {
         <TurnHistory turnLog={turnLog} formatLogEntry={actions.formatLogEntry} />
       </Box>
 
-      {/* --- THIS IS THE FIX --- */}
-      {/* The redundant, non-functional "Reset All Turn Counts" button that was */}
-      {/* previously rendered here has been completely removed. The correct */}
-      {/* implementation in the kebab menu is now the single source of truth. */}
-
       <GroupActionButtons
         isParticipant={!!currentUserParticipant}
         onTurnAction={actions.handleTurnAction}
         onUndoClick={undoDialog.handleOpen}
+        onInviteClick={actions.handleGenericInvite}
         isUserTurn={isUserTurn}
         isSubmitting={isSubmitting}
         undoableAction={undoableAction}
+        isAdmin={isAdmin}
       />
 
       <Menu
@@ -155,7 +153,6 @@ export const GroupDetailScreen: FC = () => {
         >
           Change Icon
         </MenuItem>
-        <MenuItem onClick={actions.handleCopyGenericLink}>Invite</MenuItem>
         <MenuItem onClick={resetDialog.handleOpen}>Reset All Turn Counts</MenuItem>
         <MenuItem onClick={deleteDialog.handleOpen}>Delete Group</MenuItem>
       </Menu>
@@ -166,37 +163,33 @@ export const GroupDetailScreen: FC = () => {
           open={participantMenu.isOpen}
           onClose={participantMenu.handleClose}
         >
-          {isAdmin && participantMenu.selectedParticipant.uid === null && (
-            <MenuItem onClick={actions.handleCopyClaimLink}>
-              Invite to Claim Spot
-            </MenuItem>
+          {/* --- RECOVERY LINK FLOW --- */}
+          {participantMenu.selectedParticipant.uid === user?.uid && user.isAnonymous && (
+            <MenuItem onClick={actions.handleRecoveryLink}>Get Recovery Link</MenuItem>
           )}
-          {isAdmin &&
-            participantMenu.selectedParticipant.uid !== user?.uid && (
-              <>
-                {participantMenu.selectedParticipant.role === 'member' &&
-                participantMenu.selectedParticipant.uid !== null ? (
-                  <MenuItem onClick={() => actions.handleRoleChange('admin')}>
-                    Promote to Admin
-                  </MenuItem>
-                ) : participantMenu.selectedParticipant.role === 'admin' ? (
-                  <MenuItem
-                    onClick={() => actions.handleRoleChange('member')}
-                    disabled={
-                      isLastAdmin &&
-                      participantMenu.selectedParticipant.role === 'admin'
-                    }
-                  >
-                    Demote to Member
-                  </MenuItem>
-                ) : null}
-              </>
-            )}
-          {isAdmin && participantMenu.selectedParticipant.uid !== user?.uid && (
-            <MenuItem onClick={actions.handleRemoveParticipant}>
-              Remove Participant
-            </MenuItem>
+
+          {/* --- ADMIN ACTIONS --- */}
+          {isAdmin && (
+            <>
+              {participantMenu.selectedParticipant.uid !== user?.uid && (
+                <>
+                  {participantMenu.selectedParticipant.role === 'member' && participantMenu.selectedParticipant.uid !== null ? (
+                    <MenuItem onClick={() => actions.handleRoleChange('admin')}>Promote to Admin</MenuItem>
+                  ) : participantMenu.selectedParticipant.role === 'admin' ? (
+                    <MenuItem
+                      onClick={() => actions.handleRoleChange('member')}
+                      disabled={isLastAdmin && participantMenu.selectedParticipant.role === 'admin'}
+                    >
+                      Demote to Member
+                    </MenuItem>
+                  ) : null}
+                  <MenuItem onClick={actions.handleRemoveParticipant}>Remove Participant</MenuItem>
+                </>
+              )}
+            </>
           )}
+          
+          {/* --- SELF-ACTION: LEAVE GROUP --- */}
           {participantMenu.selectedParticipant.uid === user?.uid && (
             <MenuItem onClick={actions.handleLeaveGroup} disabled={isLastAdmin}>
               Leave Group
@@ -209,7 +202,7 @@ export const GroupDetailScreen: FC = () => {
         open={iconPickerMenu.isOpen}
         anchorEl={iconPickerMenu.anchorEl}
         onClose={iconPickerMenu.handleClose}
-        onEmojiSelect={actions.handleIconSelect}
+        onEmojiSelect={actions.handleUpdateGroupIcon}
       />
 
       <ResetCountsConfirmationDialog
@@ -227,8 +220,7 @@ export const GroupDetailScreen: FC = () => {
         <DialogTitle>Undo Last Turn?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This will reverse the turn taken by "{undoableAction?.participantName}
-            ". This action will be logged. Are you sure?
+            This will reverse the turn taken by "{undoableAction?.participantName}". This action will be logged. Are you sure?
           </DialogContentText>
         </DialogContent>
         <DialogActions>

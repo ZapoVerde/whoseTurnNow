@@ -1,19 +1,17 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/hooks/useGroupActions.ts
- * @stamp {"ts":"2025-10-23T11:00:00Z"}
+ * @stamp {"ts":"2025-10-23T06:30:00Z"}
  * @architectural-role Hook
  * @description
- * The "Hands" of the Group Detail feature. This hook is a collection of all
- * user-initiated actions that cause a state change. It encapsulates the logic
- * for calling the repository, managing submission states, and providing user feedback.
+ * The "Hands" of the Group Detail feature. This hook centralizes all user-initiated
+ * actions, including group settings updates and the unified sharing mechanism.
  * @core-principles
- * 1. IS a collection of memoized action handlers (`useCallback`).
- * 2. OWNS the "transient" UI states related to actions (e.g., `isSubmitting`, `feedback`).
- * 3. DELEGATES all I/O to the `groupsRepository` module.
- * 4. MUST be stateless regarding core business data; it receives the necessary
- *    context from its props to perform its actions.
+ * 1. OWNS the logic for all user-initiated state changes and I/O orchestration.
+ * 2. MUST encapsulate the `navigator.share` / clipboard fallback logic.
+ * 3. DELEGATES all direct I/O to the `groupsRepository`.
  * @api-declaration
- *   - useGroupActions: The exported hook function.
+ *   - `useGroupActions`: The exported hook.
+ *   - `returns.handleUpdateGroupIcon`: Action to update the group's icon.
  * @contract
  *   assertions:
  *     purity: mutates
@@ -33,10 +31,8 @@ import type {
 } from '../../../types/group';
 
 interface GroupActionsProps {
-  groupId: string | undefined;
-  // --- THIS IS NEW ---
-  // The full group object is now required to perform settings updates.
   group: Group | null;
+  groupId: string | undefined;
   user: AppUser | null;
   currentUserParticipant: TurnParticipant | null;
   isUserTurn: boolean;
@@ -45,8 +41,8 @@ interface GroupActionsProps {
 }
 
 export function useGroupActions({
-  groupId,
   group,
+  groupId,
   user,
   currentUserParticipant,
   isUserTurn,
@@ -61,24 +57,70 @@ export function useGroupActions({
   } | null>(null);
   const [newParticipantName, setNewParticipantName] = useState('');
 
-  // --- ADD THIS NEW ACTION ---
-  const handleUpdateGroupIcon = useCallback(
-    async (newIcon: string) => {
-      if (!groupId || !group || !newIcon.trim()) return;
-
-      try {
-        await groupsRepository.updateGroupSettings(groupId, {
-          name: group.name, // Preserve the existing name
-          icon: newIcon.trim(),
-        });
-        setFeedback({ message: 'Group icon updated!', severity: 'success' });
-      } catch (error) {
-        console.error('Failed to update group icon:', error);
-        setFeedback({ message: 'Failed to update icon.', severity: 'error' });
+  const handleShare = useCallback(
+    async (url: string, title: string, successMessage: string) => {
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: title,
+            text: `Join "${group?.name || 'the list'}" on Whose Turn Now!`,
+            url: url,
+          });
+        } catch (error) {
+          console.log('Web Share API was cancelled or failed.', error);
+        }
+      } else {
+        await navigator.clipboard.writeText(url);
+        setFeedback({ message: successMessage, severity: 'success' });
       }
     },
-    [groupId, group],
+    [group?.name],
   );
+
+  const handleGenericInvite = useCallback(() => {
+    if (!groupId || !group) return;
+    const url = `${window.location.origin}/join/${groupId}`;
+    handleShare(url, `Join my list: ${group.name}`, 'Invite link copied!');
+  }, [groupId, group, handleShare]);
+
+  const handleTargetedInvite = useCallback(
+    (participantId: string) => {
+      if (!groupId || !group) return;
+      const participant = group.participants.find((p) => p.id === participantId);
+      const participantName = participant?.nickname || 'this spot';
+      const url = `${window.location.origin}/join/${groupId}?participantId=${participantId}`;
+      handleShare(
+        url,
+        `Claim the '${participantName}' spot`,
+        `Claim link for '${participantName}' copied!`,
+      );
+    },
+    [groupId, group, handleShare],
+  );
+
+  const handleRecoveryLink = useCallback(() => {
+    if (!groupId || !group) return;
+    const url = `${window.location.origin}/join/${groupId}`;
+    handleShare(
+      url,
+      `Access link for: ${group.name}`,
+      'Recovery link copied! Use this on another device.',
+    );
+  }, [groupId, group, handleShare]);
+  
+  const handleUpdateGroupIcon = useCallback(async (newIcon: string) => {
+      if (!groupId || !group) return;
+      try {
+          await groupsRepository.updateGroupSettings(groupId, {
+              name: group.name,
+              icon: newIcon,
+          });
+          setFeedback({ message: 'Group icon updated!', severity: 'success' });
+      } catch (error) {
+          console.error('Failed to update group icon:', error);
+          setFeedback({ message: 'Failed to update icon.', severity: 'error' });
+      }
+  }, [groupId, group]);
 
   const handleTurnAction = useCallback(async () => {
     if (!groupId || !user || !currentUserParticipant) return;
@@ -86,7 +128,6 @@ export function useGroupActions({
       ? orderedParticipants[0].id
       : currentUserParticipant.id;
     if (!participantToMoveId) return;
-
     setIsSubmitting(true);
     try {
       await groupsRepository.completeTurnTransaction(
@@ -141,7 +182,8 @@ export function useGroupActions({
   const handleLeaveGroup = useCallback(async () => {
     if (!groupId || !user) return;
     await groupsRepository.leaveGroup(groupId, user.uid);
-  }, [groupId, user]);
+    navigate('/');
+  }, [groupId, user, navigate]);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!groupId) return;
@@ -170,23 +212,6 @@ export function useGroupActions({
       setIsSubmitting(false);
     }
   }, [groupId, user, undoableAction]);
-
-  const handleCopyGenericLink = useCallback(() => {
-    if (!groupId) return;
-    const url = `${window.location.origin}/join/${groupId}`;
-    navigator.clipboard.writeText(url);
-    setFeedback({ message: 'Generic invite link copied!', severity: 'success' });
-  }, [groupId]);
-
-  const handleCopyClaimLink = useCallback(
-    (participantId: string) => {
-      if (!groupId) return;
-      const url = `${window.location.origin}/join/${groupId}?participantId=${participantId}`;
-      navigator.clipboard.writeText(url);
-      setFeedback({ message: 'Claim link for spot copied!', severity: 'success' });
-    },
-    [groupId],
-  );
 
   const formatLogEntry = useCallback((log: LogEntry) => {
     switch (log.type) {
@@ -217,9 +242,9 @@ export function useGroupActions({
     handleConfirmDelete,
     handleConfirmReset,
     handleConfirmUndo,
-    handleCopyGenericLink,
-    handleCopyClaimLink,
-    // --- EXPOSE THE NEW ACTION ---
+    handleGenericInvite,
+    handleTargetedInvite,
+    handleRecoveryLink,
     handleUpdateGroupIcon,
     formatLogEntry,
   };
