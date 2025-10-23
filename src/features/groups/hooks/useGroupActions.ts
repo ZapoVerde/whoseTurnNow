@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/hooks/useGroupActions.ts
- * @stamp {"ts":"2025-10-23T06:30:00Z"}
+ * @stamp {"ts":"2025-10-23T07:10:00Z"}
  * @architectural-role Hook
  * @description
  * The "Hands" of the Group Detail feature. This hook centralizes all user-initiated
@@ -11,11 +11,11 @@
  * 3. DELEGATES all direct I/O to the `groupsRepository`.
  * @api-declaration
  *   - `useGroupActions`: The exported hook.
- *   - `returns.handleUpdateGroupIcon`: Action to update the group's icon.
+ *   - `returns.handleAddParticipant`: Action to add a new managed participant.
  * @contract
  *   assertions:
  *     purity: mutates
- *     state_ownership: [isSubmitting, feedback, newParticipantName]
+ *     state_ownership: [isSubmitting, feedback]
  *     external_io: firestore
  */
 
@@ -55,7 +55,6 @@ export function useGroupActions({
     message: string;
     severity: 'success' | 'error';
   } | null>(null);
-  const [newParticipantName, setNewParticipantName] = useState('');
 
   const handleShare = useCallback(
     async (url: string, title: string, successMessage: string) => {
@@ -107,20 +106,23 @@ export function useGroupActions({
       'Recovery link copied! Use this on another device.',
     );
   }, [groupId, group, handleShare]);
-  
-  const handleUpdateGroupIcon = useCallback(async (newIcon: string) => {
+
+  const handleUpdateGroupIcon = useCallback(
+    async (newIcon: string) => {
       if (!groupId || !group) return;
       try {
-          await groupsRepository.updateGroupSettings(groupId, {
-              name: group.name,
-              icon: newIcon,
-          });
-          setFeedback({ message: 'Group icon updated!', severity: 'success' });
+        await groupsRepository.updateGroupSettings(groupId, {
+          name: group.name,
+          icon: newIcon,
+        });
+        setFeedback({ message: 'Group icon updated!', severity: 'success' });
       } catch (error) {
-          console.error('Failed to update group icon:', error);
-          setFeedback({ message: 'Failed to update icon.', severity: 'error' });
+        console.error('Failed to update group icon:', error);
+        setFeedback({ message: 'Failed to update icon.', severity: 'error' });
       }
-  }, [groupId, group]);
+    },
+    [groupId, group],
+  );
 
   const handleTurnAction = useCallback(async () => {
     if (!groupId || !user || !currentUserParticipant) return;
@@ -143,25 +145,24 @@ export function useGroupActions({
     }
   }, [groupId, user, currentUserParticipant, isUserTurn, orderedParticipants]);
 
-  const handleAddParticipant = useCallback(async () => {
-    if (!groupId || !newParticipantName.trim()) return;
-    setIsSubmitting(true);
-    try {
-      await groupsRepository.addManagedParticipant(
-        groupId,
-        newParticipantName.trim(),
-      );
-      setNewParticipantName('');
-    } catch (error) {
-      console.error('Failed to add participant:', error);
-      setFeedback({
-        message: 'Failed to add participant.',
-        severity: 'error',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [groupId, newParticipantName]);
+  const handleAddParticipant = useCallback(
+    async (name: string) => {
+      if (!groupId) return;
+      setIsSubmitting(true);
+      try {
+        await groupsRepository.addManagedParticipant(groupId, name);
+      } catch (error) {
+        console.error('Failed to add participant:', error);
+        setFeedback({
+          message: 'Failed to add participant.',
+          severity: 'error',
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [groupId],
+  );
 
   const handleRoleChange = useCallback(
     async (participantId: string, newRole: 'admin' | 'member') => {
@@ -231,8 +232,6 @@ export function useGroupActions({
   return {
     isSubmitting,
     feedback,
-    newParticipantName,
-    setNewParticipantName,
     setFeedback,
     handleTurnAction,
     handleAddParticipant,

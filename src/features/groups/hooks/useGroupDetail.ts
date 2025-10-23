@@ -1,21 +1,20 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/hooks/useGroupDetail.ts
- * @stamp {"ts":"2025-10-23T06:05:00Z"}
+ * @stamp {"ts":"2025-10-23T07:15:00Z"}
  * @architectural-role Orchestrator
  * @description
  * The primary "Conductor" hook for the Group Detail feature. It composes all
- * necessary data, state, and actions from various sources (stores and specialized
- * satellite hooks) into a single, comprehensive view model for the UI component.
+ * necessary data, state, and actions from various sources into a single,
+- * comprehensive view model for the UI component.
++ * comprehensive view model, including managing the state for all dialogs.
  * @core-principles
  * 1. IS the single composition root for the feature's logic.
  * 2. ORCHESTRATES the view model by composing data from stores with logic from satellite hooks.
- * 3. DELEGATES all business logic calculations to the `useGroupDerivedState` hook.
- * 4. DELEGATES all action handling and I/O to the `useGroupActions` hook.
- * 5. MUST NOT contain its own business logic or direct I/O calls.
+ * 3. DELEGATES all business logic calculations to `useGroupDerivedState`.
+ * 4. DELEGATES all action handling and I/O to `useGroupActions`.
  * @api-declaration
  *   - default: The `useGroupDetail` hook function.
- *   - returns: A comprehensive view model object containing all data, derived
- *     state, and actions (including invitation handlers) required by the UI.
+ *   - returns: A comprehensive view model object required by the `GroupDetailScreen`.
  * @contract
  *   assertions:
  *     purity: mutates
@@ -50,6 +49,14 @@ export function useGroupDetail(groupId: string | undefined) {
   const deleteDialog = useDialogState(actions.handleConfirmDelete);
   const resetDialog = useDialogState(actions.handleConfirmReset);
   const undoDialog = useDialogState(actions.handleConfirmUndo);
+  
+  // New dialog state management
+  const addParticipantDialog = useDialogState(async (name?: string) => {
+    if (typeof name === 'string') {
+      await actions.handleAddParticipant(name);
+    }
+  });
+
 
   const [selectedParticipant, setSelectedParticipant] =
     useState<TurnParticipant | null>(null);
@@ -73,7 +80,6 @@ export function useGroupDetail(groupId: string | undefined) {
 
   const handleCloseParticipantMenu = () => {
     participantMenu.handleClose();
-    // Delay clearing the selected participant to prevent menu content from disappearing during transition
     setTimeout(() => setSelectedParticipant(null), 150);
   };
 
@@ -90,15 +96,18 @@ export function useGroupDetail(groupId: string | undefined) {
     }
     handleCloseParticipantMenu();
   };
-
-  const handleCopyClaimLink = () => {
+  
+  const handleTargetedInvite = () => {
     if (selectedParticipant) {
-      // The old handleTargetedInvite now serves this purpose.
       actions.handleTargetedInvite(selectedParticipant.id);
     }
     handleCloseParticipantMenu();
   };
-  
+
+  const handleUpdateGroupIcon = (newIcon: string) => {
+    actions.handleUpdateGroupIcon(newIcon);
+  };
+
   // 7. Assemble and return the final, clean view model for the component
   return {
     // Raw Data
@@ -113,12 +122,7 @@ export function useGroupDetail(groupId: string | undefined) {
     // Actions & Action-related State (from the "Hands")
     isSubmitting: actions.isSubmitting,
     feedback: actions.feedback,
-    addParticipantForm: {
-      name: actions.newParticipantName,
-      setName: actions.setNewParticipantName,
-      handleSubmit: actions.handleAddParticipant,
-    },
-
+    
     // Composed UI State
     groupMenu,
     participantMenu: {
@@ -131,13 +135,15 @@ export function useGroupDetail(groupId: string | undefined) {
     resetDialog,
     deleteDialog,
     undoDialog,
+    addParticipantDialog,
 
     // Actions that need to be composed with local UI state
     actions: {
       ...actions,
       handleRoleChange,
       handleRemoveParticipant,
-      handleCopyClaimLink,
+      handleTargetedInvite,
+      handleUpdateGroupIcon,
     },
   };
 }
