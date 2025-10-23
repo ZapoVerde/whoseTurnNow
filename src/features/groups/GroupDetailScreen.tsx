@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/GroupDetailScreen.tsx
- * @stamp {"ts":"2025-10-23T00:55:00Z"}
+ * @stamp {"ts":"2025-10-23T08:30:00Z"}
  * @architectural-role UI Component
  * @description
  * The top-level UI component for the Group Detail feature. It acts as a "dumb"
@@ -22,7 +22,7 @@
  */
 
 import { useMemo, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
@@ -52,8 +52,8 @@ import {
 
 export const GroupDetailScreen: FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
+  const navigate = useNavigate();
 
-  // This one hook provides the complete, ready-to-render view model.
   const {
     group,
     turnLog,
@@ -76,9 +76,6 @@ export const GroupDetailScreen: FC = () => {
     actions,
   } = useGroupDetail(groupId);
 
-  // --- THIS IS THE FIX ---
-  // The responsibility for managing the AppBar's state now correctly lives in the
-  // view component as a lifecycle-managed side effect.
   const appBarActions = useMemo(() => {
     return isAdmin ? (
       <IconButton color="inherit" aria-label="Group options" onClick={groupMenu.handleOpen}>
@@ -92,7 +89,6 @@ export const GroupDetailScreen: FC = () => {
     showBackButton: true,
     actions: appBarActions,
   });
-  // --- END FIX ---
 
   if (isLoading) {
     return (
@@ -106,6 +102,7 @@ export const GroupDetailScreen: FC = () => {
     return (
       <Box component="main" sx={{ p: 2, textAlign: 'center' }}>
         <Typography variant="h5">Group not found.</Typography>
+        <Button onClick={() => navigate('/')} sx={{ mt: 2 }}>Go to Dashboard</Button>
       </Box>
     );
   }
@@ -113,11 +110,10 @@ export const GroupDetailScreen: FC = () => {
   return (
     <>
       <Box component="main" sx={{ pb: 12 }}>
-        <GroupHeader
-          group={group}
-          isAdmin={isAdmin}
-          onMenuClick={groupMenu.handleOpen}
-        />
+        {/* --- THIS IS THE FIX --- */}
+        {/* The redundant props have been removed. The GroupHeader is now only */}
+        {/* responsible for displaying the group's name and icon. */}
+        <GroupHeader group={group} />
         <ParticipantList
           participants={orderedParticipants}
           onParticipantClick={participantMenu.handleOpen}
