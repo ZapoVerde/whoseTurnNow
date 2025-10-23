@@ -153,6 +153,22 @@ export function getUserGroups(
       onUpdate(docSnap.exists() ? (docSnap.data() as Group) : null);
     });
   }
+
+  // =================================================================
+// ADD THIS NEW FUNCTION AFTER getGroup()
+// =================================================================
+/**
+ * Fetches a single group document once, without establishing a listener.
+ * This is intended for use on public-facing pages like the InvitationScreen,
+ * where a non-member needs to read public group data.
+ * @param groupId The ID of the group to fetch.
+ * @returns A promise that resolves to the Group object or null if not found.
+ */
+export async function getGroupOnce(groupId: string): Promise<Group | null> {
+  const groupDocRef = doc(db, 'groups', groupId);
+  const groupDocSnap = await getDoc(groupDocRef);
+  return groupDocSnap.exists() ? (groupDocSnap.data() as Group) : null;
+}
   
   // =================================================================
 // SECTION 3: REPLACE THE `addManagedParticipant` FUNCTION

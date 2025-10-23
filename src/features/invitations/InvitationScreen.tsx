@@ -30,7 +30,7 @@ import { LoginScreen } from '../auth/LoginScreen';
 import {
   joinGroupAsNewParticipant,
   claimPlaceholder,
-  getGroup,
+  getGroupOnce, 
 } from '../groups/groupsRepository';
 import type { Group } from '../../types/group';
 
@@ -50,11 +50,18 @@ export const InvitationScreen: FC = () => {
   useEffect(() => {
     if (!groupId) return;
 
-    const unsubscribe = getGroup(groupId, (group) => {
-      setGroupData(group);
-    });
+    // Use an async function to perform the one-time read.
+    const fetchGroupData = async () => {
+      try {
+        const group = await getGroupOnce(groupId);
+        setGroupData(group);
+      } catch (err) {
+        console.error("Failed to fetch group data for invitation:", err);
+        setError("Could not load invitation details.");
+      }
+    };
 
-    return () => unsubscribe();
+    fetchGroupData();
   }, [groupId]);
 
   // Effect to handle the joining logic once the user is authenticated
