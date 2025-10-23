@@ -60,6 +60,8 @@ const AuthenticatedRoutes: React.FC = () => {
   useFirebaseAuthListener();
   const authStatus = useAuthStore((state) => state.status);
 
+  console.log(`[Router] Rendering with authStatus: '${authStatus}'`);
+
   const routesToPreload = [loadGroupDetail, loadSettings];
   useRoutePreloader(routesToPreload);
 

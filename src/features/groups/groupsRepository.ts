@@ -109,19 +109,35 @@ export async function createGroup(options: {
     groupId: string,
     participantName: string,
   ): Promise<void> {
-    const participantId = uuidv4();
-    const newParticipant: TurnParticipant = {
-      id: participantId,
-      uid: null,
-      nickname: participantName,
-      role: 'member',
-      turnCount: 0,
-    };
-  
     const groupDocRef = doc(db, 'groups', groupId);
-    await updateDoc(groupDocRef, {
-      participants: arrayUnion(newParticipant),
-      turnOrder: arrayUnion(participantId),
+
+    await runTransaction(db, async (transaction) => {
+      // 1. Read the current state of the document.
+      const groupDoc = await transaction.get(groupDocRef);
+      if (!groupDoc.exists()) {
+        throw new Error("Group does not exist!");
+      }
+
+      const groupData = groupDoc.data() as Group;
+      
+      // 2. Modify the data in memory on the client.
+      const participantId = uuidv4();
+      const newParticipant: TurnParticipant = {
+        id: participantId,
+        uid: null,
+        nickname: participantName,
+        role: 'member',
+        turnCount: 0,
+      };
+
+      const newParticipants = [...groupData.participants, newParticipant];
+      const newTurnOrder = [...groupData.turnOrder, participantId];
+      
+      // 3. Write the entire, complete new state back to the database.
+      transaction.update(groupDocRef, {
+        participants: newParticipants,
+        turnOrder: newTurnOrder,
+      });
     });
   }
   

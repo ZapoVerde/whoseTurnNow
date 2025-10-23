@@ -13,7 +13,7 @@
  * 1. OWNS the subscription to the external `onAuthStateChanged` listener.
  * 2. ORCHESTRATES the data flow by calling the `userRepository` for data access
  *    and the `useAuthStore` for state updates.
- * 3. MUST NOT create user profiles directly; it must delegate this to the UI by setting the 'new-user' state.
+ * 3. MUST correctly manage the application's authentication status lifecycle.
  *
  * @api-declaration
  *   - `useFirebaseAuthListener`: The exported headless React hook.
@@ -35,31 +35,43 @@ export function useFirebaseAuthListener() {
   const { setAuthenticated, setUnauthenticated, setStatus } = useAuthStore();
 
   useEffect(() => {
+    console.log('[Listener] Hook MOUNTED. Subscribing to auth changes.');
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('[Listener] onAuthStateChanged FIRED.', { 
+        uid: firebaseUser?.uid, 
+        isAnonymous: firebaseUser?.isAnonymous 
+      });
+
       if (!firebaseUser) {
+        console.log('[Listener] User is NULL. Setting unauthenticated.');
         setUnauthenticated();
         return;
       }
 
-      // Check if the user profile already exists in Firestore.
       const userProfile = await userRepository.getUserProfile(firebaseUser.uid);
 
       if (userProfile) {
-        // This is a returning user with an existing profile.
+        console.log('[Listener] Profile FOUND in database. Setting authenticated.', userProfile);
+        // --- THIS IS THE FIX ---
+        // We must update both the user object AND the application status.
         setAuthenticated(userProfile);
+        setStatus('authenticated');
+        // --- END FIX ---
       } else {
-        // This is a brand new user.
-        // Set the 'new-user' status and provide a temporary user object.
-        // The UI will use this to render the name input screen.
+        console.log('[Listener] Profile NOT FOUND. Setting status to new-user.');
         setStatus('new-user');
         setAuthenticated({
           uid: firebaseUser.uid,
-          displayName: null, // This is null because they have not set it yet.
+          displayName: null,
           isAnonymous: firebaseUser.isAnonymous,
         });
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('[Listener] Hook UNMOUNTED. Unsubscribing.');
+      unsubscribe();
+    }
   }, [setAuthenticated, setUnauthenticated, setStatus]);
 }
