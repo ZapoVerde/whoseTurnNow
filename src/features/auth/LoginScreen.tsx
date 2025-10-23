@@ -32,18 +32,17 @@ import {
   signInAnonymously,
 } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
-import {
-  Container,
-  Box,
-  Typography,
-  TextField,
-  Button,
-  Tabs,
-  Tab,
-  CircularProgress,
-  Alert,
-  Divider,
-} from '@mui/material';
+import Container from '@mui/material/Container';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+import Divider from '@mui/material/Divider';
+import Stack from '@mui/material/Stack';
 
 export const LoginScreen: FC = () => {
   const [tab, setTab] = useState<'login' | 'signup'>('login');
@@ -54,7 +53,7 @@ export const LoginScreen: FC = () => {
 
   const handleTabChange = (_event: SyntheticEvent, newValue: 'login' | 'signup') => {
     setTab(newValue);
-    setError(null); // Clear errors when switching tabs
+    setError(null);
   };
 
   const handleAuth = async (authAction: Promise<any>) => {
@@ -62,9 +61,7 @@ export const LoginScreen: FC = () => {
     setError(null);
     try {
       await authAction;
-      // On success, the AuthOrchestrator will handle the state change.
     } catch (err: any) {
-      // Provide a more user-friendly error message
       setError(err.message || 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
@@ -110,64 +107,64 @@ export const LoginScreen: FC = () => {
           </Tabs>
         </Box>
 
-        <Box component="form" onSubmit={handleEmailPasswordSubmit} sx={{ mt: 1 }}>
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="email"
-            label="Email Address"
-            name="email"
-            autoComplete="email"
-            autoFocus
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={isSubmitting}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            name="password"
-            label="Password"
-            type="password"
-            id="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={isSubmitting}
-          />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ mt: 3, mb: 2, height: 40 }}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? <CircularProgress size={24} /> : tab === 'login' ? 'Log In' : 'Sign Up'}
-          </Button>
+        <Box component="form" onSubmit={handleEmailPasswordSubmit} sx={{ width: '100%', mt: 1 }}>
+          <Stack spacing={2} sx={{ mt: 2 }}>
+            <TextField
+              required
+              fullWidth
+              id="email"
+              label="Email Address"
+              name="email"
+              autoComplete="email"
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isSubmitting}
+            />
+            <TextField
+              required
+              fullWidth
+              name="password"
+              label="Password"
+              type="password"
+              id="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isSubmitting}
+            />
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <CircularProgress size={24} /> : tab === 'login' ? 'Log In' : 'Sign Up'}
+            </Button>
+          </Stack>
         </Box>
 
         <Divider sx={{ width: '100%', my: 2 }}>Or</Divider>
 
-        <Button
-          fullWidth
-          variant="outlined"
-          sx={{ mb: 2 }}
-          onClick={handleGoogleSignIn}
-          disabled={isSubmitting}
-        >
-          Sign in with Google
-        </Button>
+        <Stack spacing={2} sx={{ width: '100%' }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={handleGoogleSignIn}
+            disabled={isSubmitting}
+          >
+            Sign in with Google
+          </Button>
 
-        <Button
-          fullWidth
-          variant="text"
-          onClick={handleAnonymousSignIn}
-          disabled={isSubmitting}
-        >
-          Continue Anonymously
-        </Button>
+          <Button
+            fullWidth
+            variant="text"
+            onClick={handleAnonymousSignIn}
+            disabled={isSubmitting}
+          >
+            Continue Anonymously
+          </Button>
+        </Stack>
 
         {error && (
           <Alert severity="error" sx={{ mt: 2, width: '100%' }}>

@@ -20,13 +20,11 @@
 
 import  { useState, useEffect, type FC } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import {
-  Container,
-  Box,
-  Typography,
-  CircularProgress,
-  Alert,
-} from '@mui/material';
+import Container from '@mui/material/Container';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
 import { useAuthStore } from '../auth/useAuthStore';
 import { LoginScreen } from '../auth/LoginScreen';
 import {

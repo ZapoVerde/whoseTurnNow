@@ -19,14 +19,12 @@
  */
 
 import { type FC, type MouseEvent } from 'react';
-import {
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Chip,
-} from '@mui/material';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Chip from '@mui/material/Chip';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import type { TurnParticipant } from '../../../types/group';
@@ -49,7 +47,7 @@ export const ParticipantList: FC<ParticipantListProps> = ({
         <ListItem key={participant.id} divider disablePadding>
           <ListItemButton onClick={(e) => onParticipantClick(e, participant)}>
             {index === 0 && (
-              <ListItemIcon sx={{ minWidth: 32 }}>
+              <ListItemIcon sx={{ minWidth: 4 }}>
                 <ArrowForwardIosIcon
                   data-testid="ArrowForwardIosIcon"
                   fontSize="small"

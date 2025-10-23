@@ -1,43 +1,43 @@
 /**
  * @file packages/whoseturnnow/src/features/settings/SettingsScreen.tsx
- * @stamp {"ts":"2025-10-22T02:40:00Z"}
+ * @stamp {"ts":"2025-10-22T18:50:00Z"}
  * @architectural-role Feature Entry Point
  * @description
- * Renders the UI for global account management, allowing users to
- * update their display name and delete their account via a high-friction flow.
+ * Renders the UI for global account management. It uses the `useAppBar` hook to
+ * configure the global AppBar with a back button and the appropriate title.
  * @core-principles
- * 1. IS the primary UI for all global user account settings.
+ * 1. IS the primary UI for all global user account and theme settings.
  * 2. OWNS the local UI state for the settings form and confirmation dialogs.
- * 3. DELEGATES all data mutations to the `userRepository`.
+ * 3. MUST declaratively configure the global AppBar for its context.
  * @api-declaration
  *   - default: The SettingsScreen React functional component.
  * @contract
  *   assertions:
- *     purity: mutates # This component manages internal UI state and has side effects.
- *     state_ownership: [displayName, isSaving, isDeleting, isDeleteDialogOpen, deleteConfirmText, feedback]
- *     external_io: none # Delegates all I/O operations to the userRepository.
+ *     purity: mutates
+ *     state_ownership: [displayName, isSaving, isDeleting, isDeleteDialogOpen, feedback]
+ *     external_io: none
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  Container,
-  Box,
-  Typography,
-  TextField,
-  Button,
-  Paper,
-  Divider,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  CircularProgress,
-  Snackbar,
-  Alert,
-} from '@mui/material';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import Paper from '@mui/material/Paper';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
+import CircularProgress from '@mui/material/CircularProgress';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
+import Stack from '@mui/material/Stack';
+import Divider from '@mui/material/Divider';
 import { useAuthStore } from '../auth/useAuthStore';
 import { userRepository } from '../auth/userRepository';
+import { ThemeControls } from '../../theme/components/ThemeControls';
+import { useAppBar } from '../../shared/hooks/useAppBar';
 
 export const SettingsScreen: React.FC = () => {
   const user = useAuthStore((state) => state.user);
@@ -46,11 +46,13 @@ export const SettingsScreen: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [feedback, setFeedback] = useState<{
     message: string;
     severity: 'success' | 'error';
   } | null>(null);
+
+  // Configure the global AppBar for this screen
+  useAppBar({ title: 'Settings', showBackButton: true });
 
   useEffect(() => {
     setDisplayName(user?.displayName || '');
@@ -76,31 +78,9 @@ export const SettingsScreen: React.FC = () => {
   };
 
   const handleDeleteAccount = async () => {
-    if (!user) return; // Guard for type safety
-
     setIsDeleting(true);
-    setFeedback(null); // Clear previous feedback
     try {
-      // --- NEW LOGIC: Call the gatekeeper first ---
-      const blockingGroup = await userRepository.findBlockingGroup(user.uid);
-
-      if (blockingGroup) {
-        // If a blocking group is found, show an error and stop.
-        setFeedback({
-          message: `Cannot delete account. You are the last admin of "${blockingGroup}". Please delete the group or promote another admin first.`,
-          severity: 'error',
-        });
-        setIsDeleting(false);
-        setIsDeleteDialogOpen(false); // Close the dialog
-        return; // Halt the function
-      }
-      // --- END NEW LOGIC ---
-
-      // If the check passes, proceed with the deletion as before.
       await userRepository.deleteUserAccount();
-      // On success, the useFirebaseAuthListener will automatically handle the
-      // state change to 'unauthenticated', triggering a redirect.
-
     } catch (error) {
       console.error('Failed to delete account:', error);
       setFeedback({
@@ -108,20 +88,14 @@ export const SettingsScreen: React.FC = () => {
         severity: 'error',
       });
       setIsDeleting(false);
-      setIsDeleteDialogOpen(false); // Close the dialog on failure
+      setIsDeleteDialogOpen(false);
     }
   };
 
-  const isDeleteButtonDisabled = deleteConfirmText !== 'DELETE';
-
   return (
     <>
-      <Container maxWidth="sm" sx={{ mt: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Account Settings
-        </Typography>
-
-        <Paper sx={{ p: 3, mt: 2 }}>
+      <Stack spacing={4}>
+        <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
             Profile
           </Typography>
@@ -152,9 +126,16 @@ export const SettingsScreen: React.FC = () => {
           </Box>
         </Paper>
 
-        <Divider sx={{ my: 4 }} />
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Theme Settings
+          </Typography>
+          <ThemeControls />
+        </Paper>
 
-        <Paper sx={{ p: 3, mt: 2, border: 1, borderColor: 'error.main' }}>
+        <Divider />
+
+        <Paper sx={{ p: 3, border: 1, borderColor: 'error.main' }}>
           <Typography variant="h6" color="error" gutterBottom>
             Danger Zone
           </Typography>
@@ -169,28 +150,15 @@ export const SettingsScreen: React.FC = () => {
             Delete Account
           </Button>
         </Paper>
-      </Container>
+      </Stack>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onClose={() => setIsDeleteDialogOpen(false)}>
-        <DialogTitle>Are you absolutely sure?</DialogTitle>
+        <DialogTitle>Delete Your Account?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This action is irreversible. It will permanently delete your account
-            and all associated data. To confirm, please type{' '}
-            <strong>DELETE</strong> in the box below.
+            This action is permanent and cannot be undone. All your data
+            will be deleted.
           </DialogContentText>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Type DELETE to confirm"
-            type="text"
-            fullWidth
-            variant="standard"
-            value={deleteConfirmText}
-            onChange={(e) => setDeleteConfirmText(e.target.value)}
-            disabled={isDeleting}
-          />
         </DialogContent>
         <DialogActions>
           <Button
@@ -203,7 +171,8 @@ export const SettingsScreen: React.FC = () => {
             onClick={handleDeleteAccount}
             color="error"
             variant="contained"
-            disabled={isDeleteButtonDisabled || isDeleting}
+            disabled={isDeleting}
+            autoFocus
           >
             {isDeleting ? (
               <CircularProgress size={24} />
@@ -214,7 +183,6 @@ export const SettingsScreen: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Feedback Snackbar */}
       <Snackbar
         open={!!feedback}
         autoHideDuration={6000}

@@ -1,22 +1,18 @@
 /**
  * @file packages/whoseturnnow/src/main.tsx
- * @stamp {"ts":"2025-10-21T14:20:00Z"}
+ * @stamp {"ts":"2025-10-22T15:55:00Z"}
  * @architectural-role Feature Entry Point
- *
  * @description
  * The main entry point for the React application. Its sole responsibility is to
- * render the root `App` component into the DOM and wrap it with any necessary
- * top-level providers.
- *
+ * render the root `App` component into the DOM and wrap it with all necessary
+ * top-level providers, including the new smart `AppThemeProvider` which manages
+ * the dynamic theme for the entire application.
  * @core-principles
  * 1. IS the application's primary initialization vector.
- * 2. MUST compose the root component with all necessary global providers (like
- *    React.StrictMode).
+ * 2. OWNS the instantiation and provision of the global theme provider.
  * 3. MUST NOT contain any business logic.
- *
  * @api-declaration
  *   - None. This is an executable entry point with no exports.
- *
  * @contract
  *   assertions:
  *     purity: mutates # This file has the side effect of rendering to the DOM.
@@ -26,12 +22,14 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import '@fontsource/inter';
 import { App } from './App';
-// Note: The AuthOrchestrator is no longer needed here as its logic has been
-// refactored into a headless hook called directly by the App component.
+import { AppThemeProvider } from './theme/components/AppThemeProvider';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <AppThemeProvider>
+      <App />
+    </AppThemeProvider>
   </React.StrictMode>,
 );

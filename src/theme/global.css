@@ -1,0 +1,100 @@
+/**
+ * @file src/theme/global.css
+ * @stamp {"ts":"2025-09-19T10:37:00Z"}
+ * @architectural-role Design Token Vault
+ *
+ * @description
+ * This file is the single, authoritative source of truth for all raw color
+ * tokens, defined as CSS Custom Properties. It establishes the complete light
+ * and dark mode color palettes for the entire application.
+ *
+ * @contract
+ * State Ownership: None. This is a static CSS file.
+ * Public API: Provides CSS variables (e.g., --palette-primary-main) for the application.
+ * Core Invariants: Any color that changes between light and dark mode MUST be defined here.
+ *
+ * @core-principles
+ * 1. IS the canonical source for all raw color values.
+ * 2. MUST define a `:root` block for the default (light) theme.
+ * 3. MUST define a `body.dark` block that overrides variables for the dark theme.
+ */
+
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: transparent;
+  color: inherit;
+}
+
+/* Prevent default link styles from clashing */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ========================================================================== */
+/* ==                  CANONICAL COLOR TOKEN DEFINITIONS                   == */
+/* ========================================================================== */
+
+:root {
+  /* --- Backgrounds --- */
+  --palette-background-default: #f2e9e4;
+  --palette-background-paper: #FFFFFF;
+  --palette-surface-canvas: var(--palette-background-default);
+  --palette-surface-panel: var(--palette-background-paper);
+  --palette-surface-card: var(--palette-background-paper);
+
+  /* --- Text --- */
+  --palette-text-primary: #22223b;
+  --palette-text-secondary: #c9ada7;
+
+  /* --- Brand Colors --- */
+  --palette-primary-main: #4a4e69;
+  --palette-secondary-main: #9a8c98;
+
+  /* --- UI Elements --- */
+  --palette-divider: #c9ada7;
+
+  /* --- Semantic Colors --- */
+  --palette-pinned-entity-main: rgba(74, 78, 105, 0.85);
+  --palette-chip-background-main: rgba(255, 255, 255, 0.7);
+  --palette-frosted-surface-main: rgba(255, 255, 255, 0.6);
+}
+
+body.dark {
+  /* --- Backgrounds --- */
+  --palette-background-default: #22223b;
+  --palette-background-paper: #4a4e69;
+  --palette-surface-canvas: var(--palette-background-default);
+  --palette-surface-panel: var(--palette-background-paper);
+  --palette-surface-card: var(--palette-background-paper);
+
+  /* --- Text --- */
+  --palette-text-primary: #f2e9e4;
+  --palette-text-secondary: #c9ada7;
+
+  /* --- Brand Colors --- */
+  --palette-primary-main: #9a8c98; /* Using the lighter secondary for better dark mode contrast */
+  --palette-secondary-main: #c9ada7;
+
+  /* --- UI Elements --- */
+  --palette-divider: #9a8c98;
+
+  /* --- Semantic Colors --- */
+  --palette-pinned-entity-main: rgba(154, 140, 152, 0.4);
+  --palette-chip-background-main: rgba(34, 34, 59, 0.4);
+  --palette-frosted-surface-main: rgba(34, 34, 59, 0.4);
+}

@@ -1,19 +1,19 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/GroupDetailScreen.tsx
- * @stamp {"ts":"2025-10-21T18:06:00Z"}
+ * @stamp {"ts":"2025-10-23T00:55:00Z"}
  * @architectural-role UI Component
  * @description
  * The top-level UI component for the Group Detail feature. It acts as a "dumb"
- * orchestrator by invoking the `useGroupDetail` hook to manage all state and
- * logic, and then composes the various child UI components, passing them the
- * required data and callbacks from the hook.
+ * view that consumes the complete view model from the `useGroupDetail` hook and
+ * renders the UI. It is also responsible for managing the `AppBar` state as a
+ * side effect for its lifecycle.
  * @core-principles
  * 1. IS a "dumb" component that primarily composes other dumb children.
- * 2. MUST NOT contain any direct business logic or state management; this is
- *    delegated entirely to the `useGroupDetail` hook.
- * 3. OWNS the composition and layout of the feature's UI components.
+ * 2. MUST NOT contain any direct business logic; this is delegated to the `useGroupDetail` hook.
+ * 3. OWNS the side effect of configuring the global `AppBar` for its specific context.
+ * 4. MUST derive all of its rendered content from the view model provided by the `useGroupDetail` hook.
  * @api-declaration
- *   - default: The GroupDetailScreen React functional component.
+ *   - default: The `GroupDetailScreen` React functional component.
  * @contract
  *   assertions:
  *     purity: pure # This component is a pure function of the state provided by its hook.
@@ -21,25 +21,25 @@
  *     external_io: none # All I/O is initiated by the `useGroupDetail` hook.
  */
 
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
-import {
-  Container,
-  Box,
-  CircularProgress,
-  Typography,
-  Menu,
-  MenuItem,
-  Snackbar,
-  Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  Button,
-} from '@mui/material';
+import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
+import Typography from '@mui/material/Typography';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { useGroupDetail } from './hooks/useGroupDetail';
+import { useAppBar } from '../../shared/hooks/useAppBar';
 import { GroupHeader } from './components/GroupHeader';
 import { ParticipantList } from './components/ParticipantList';
 import { AddParticipantForm } from './components/AddParticipantForm';
@@ -52,18 +52,21 @@ import {
 
 export const GroupDetailScreen: FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
+
+  // This one hook provides the complete, ready-to-render view model.
   const {
     group,
     turnLog,
     isLoading,
     isSubmitting,
-    user,
     feedback,
+    user,
     orderedParticipants,
     isAdmin,
     isLastAdmin,
     isUserTurn,
     undoableAction,
+    currentUserParticipant,
     addParticipantForm,
     groupMenu,
     participantMenu,
@@ -73,7 +76,23 @@ export const GroupDetailScreen: FC = () => {
     actions,
   } = useGroupDetail(groupId);
 
-  const currentUserParticipant = user && group ? group.participants.find(p => p.uid === user.uid) : null;
+  // --- THIS IS THE FIX ---
+  // The responsibility for managing the AppBar's state now correctly lives in the
+  // view component as a lifecycle-managed side effect.
+  const appBarActions = useMemo(() => {
+    return isAdmin ? (
+      <IconButton color="inherit" aria-label="Group options" onClick={groupMenu.handleOpen}>
+        <MoreVertIcon />
+      </IconButton>
+    ) : null;
+  }, [isAdmin, groupMenu.handleOpen]);
+
+  useAppBar({
+    title: group?.name || 'Loading...',
+    showBackButton: true,
+    actions: appBarActions,
+  });
+  // --- END FIX ---
 
   if (isLoading) {
     return (
@@ -85,15 +104,15 @@ export const GroupDetailScreen: FC = () => {
 
   if (!group) {
     return (
-      <Container sx={{ mt: 8, textAlign: 'center' }}>
+      <Box component="main" sx={{ p: 2, textAlign: 'center' }}>
         <Typography variant="h5">Group not found.</Typography>
-      </Container>
+      </Box>
     );
   }
 
   return (
     <>
-      <Container component="main" maxWidth="md" sx={{ pb: 12 }}>
+      <Box component="main" sx={{ pb: 12 }}>
         <GroupHeader
           group={group}
           isAdmin={isAdmin}
@@ -112,7 +131,7 @@ export const GroupDetailScreen: FC = () => {
           />
         )}
         <TurnHistory turnLog={turnLog} formatLogEntry={actions.formatLogEntry} />
-      </Container>
+      </Box>
 
       <GroupActionButtons
         isParticipant={!!currentUserParticipant}
@@ -123,7 +142,6 @@ export const GroupDetailScreen: FC = () => {
         undoableAction={undoableAction}
       />
 
-      {/* Menus, Dialogs, and Snackbar are controlled by the hook's composed objects */}
       <Menu
         anchorEl={groupMenu.anchorEl}
         open={groupMenu.isOpen}

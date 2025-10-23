@@ -19,7 +19,9 @@
  */
 
 import { type FC } from 'react';
-import { Paper, TextField, Button } from '@mui/material';
+import Paper from '@mui/material/Paper';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
 
 interface AddParticipantFormProps {
   name: string;

@@ -12,7 +12,9 @@
  */
 
 import { type FC, type MouseEvent } from 'react';
-import { Box, Typography, IconButton } from '@mui/material';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import type { Group } from '../../../types/group';
 
@@ -39,6 +41,7 @@ export const GroupHeader: FC<GroupHeaderProps> = ({ group, isAdmin, onMenuClick 
       </Typography>
       {isAdmin && (
         <IconButton
+          aria-label="Group options"
           data-testid="group-menu-button"
           onClick={onMenuClick}
           sx={{ position: 'absolute', right: 0 }}

@@ -19,7 +19,8 @@
  */
 
 import  { type FC } from 'react';
-import { Fab, CircularProgress } from '@mui/material';
+import Fab from '@mui/material/Fab';
+import CircularProgress from '@mui/material/CircularProgress';
 import UndoIcon from '@mui/icons-material/Undo';
 import type { TurnCompletedLog } from '../../../types/group';
 
@@ -49,7 +50,7 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
       <Fab
         size="medium"
         color="secondary"
-        aria-label="undo"
+        aria-label="Undo last turn"
         sx={{ position: 'fixed', bottom: 16, right: 96 }}
         disabled={!undoableAction || isSubmitting}
         onClick={onUndoClick}
