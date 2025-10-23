@@ -54,6 +54,7 @@ export interface AuthState {
    * 'initializing': The application is starting and has not yet received the auth state.
    * 'authenticated': A user is signed in.
    * 'unauthenticated': No user is signed in.
+   * 'new-user': A new user is signed in but has not yet set their display name.
    */
   status: 'initializing' | 'authenticated' | 'unauthenticated' | 'new-user';
   /**

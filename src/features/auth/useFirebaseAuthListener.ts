@@ -7,13 +7,13 @@
  * A headless custom hook that serves as the single bridge between the external
  * Firebase Authentication service and the application's internal state. It listens
  * for authentication changes and orchestrates the user profile synchronization
- * lifecycle.
+ * lifecycle, handing off to the UI for new user creation.
  *
  * @core-principles
  * 1. OWNS the subscription to the external `onAuthStateChanged` listener.
  * 2. ORCHESTRATES the data flow by calling the `userRepository` for data access
  *    and the `useAuthStore` for state updates.
- * 3. MUST NOT render any UI.
+ * 3. MUST NOT create user profiles directly; it must delegate this to the UI by setting the 'new-user' state.
  *
  * @api-declaration
  *   - `useFirebaseAuthListener`: The exported headless React hook.
@@ -28,11 +28,11 @@
 import { useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
-import { useAuthStore, type AppUser } from './useAuthStore';
+import { useAuthStore } from './useAuthStore';
 import { userRepository } from './userRepository';
 
 export function useFirebaseAuthListener() {
-  const { setAuthenticated, setUnauthenticated } = useAuthStore();
+  const { setAuthenticated, setUnauthenticated, setStatus } = useAuthStore();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -41,34 +41,25 @@ export function useFirebaseAuthListener() {
         return;
       }
 
-      let userProfile = await userRepository.getUserProfile(firebaseUser.uid);
+      // Check if the user profile already exists in Firestore.
+      const userProfile = await userRepository.getUserProfile(firebaseUser.uid);
 
-      if (!userProfile) {
-        // This is a new user. We must create their profile.
-        
-        // MINIMAL FIX FOR STAGE 1:
-        // If the user (especially a new anonymous user) has no display name,
-        // provide a sensible default. A full "First-Time Handshake" feature
-        // will be built in a later stage to allow the user to choose their name.
-        const newDisplayName = firebaseUser.displayName || 'Anonymous User';
-
-        const newUser: AppUser = {
+      if (userProfile) {
+        // This is a returning user with an existing profile.
+        setAuthenticated(userProfile);
+      } else {
+        // This is a brand new user.
+        // Set the 'new-user' status and provide a temporary user object.
+        // The UI will use this to render the name input screen.
+        setStatus('new-user');
+        setAuthenticated({
           uid: firebaseUser.uid,
-          displayName: newDisplayName,
+          displayName: null, // This is null because they have not set it yet.
           isAnonymous: firebaseUser.isAnonymous,
-        };
-        
-        // Delegate profile creation to the repository
-        await userRepository.createUserProfile(newUser);
-        
-        // The newly created profile is now our source of truth
-        userProfile = newUser;
+        });
       }
-
-      // With a valid profile now guaranteed, set the application state.
-      setAuthenticated(userProfile);
     });
 
     return () => unsubscribe();
-  }, [setAuthenticated, setUnauthenticated]);
+  }, [setAuthenticated, setUnauthenticated, setStatus]);
 }

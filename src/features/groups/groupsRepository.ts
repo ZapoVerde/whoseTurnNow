@@ -59,7 +59,7 @@ export async function createGroup(options: {
       uid: creator.uid,
       role: 'admin',
       turnCount: 0,
-      nickname: creator.displayName ?? undefined,
+      nickname: creator.displayName ?? 'default',
     };
   
     const newGroup: Group = {

@@ -27,6 +27,7 @@ import { useAuthStore } from './features/auth/useAuthStore';
 import { useFirebaseAuthListener } from './features/auth/useFirebaseAuthListener';
 import { useRoutePreloader } from './shared/hooks/useRoutePreloader';
 import { MainLayout } from './shared/components/layout/MainLayout'; // Import the new layout
+import { NewUserHandshake } from './features/auth/NewUserHandshake';
 
 // --- Lazy-loaded Screen Components ---
 const LoginScreen = React.lazy(() =>
@@ -56,34 +57,40 @@ const FullScreenLoader = () => (
 );
 
 const AuthenticatedRoutes: React.FC = () => {
-    useFirebaseAuthListener();
-    const authStatus = useAuthStore((state) => state.status);
+  useFirebaseAuthListener();
+  const authStatus = useAuthStore((state) => state.status);
 
-    const routesToPreload = [loadGroupDetail, loadSettings];
-    useRoutePreloader(routesToPreload);
+  const routesToPreload = [loadGroupDetail, loadSettings];
+  useRoutePreloader(routesToPreload);
 
-    if (authStatus === 'initializing') {
-        return <FullScreenLoader />;
-    }
+  if (authStatus === 'initializing') {
+      return <FullScreenLoader />;
+  }
 
-    if (authStatus === 'unauthenticated') {
-        return (
-            <Routes>
-                <Route path="*" element={<LoginScreen />} />
-            </Routes>
-        );
-    }
+  // --- THIS IS THE NEW LOGIC ---
+  if (authStatus === 'new-user') {
+    return <NewUserHandshake />;
+  }
 
-    return (
-        <Routes>
-            <Route element={<MainLayout />}>
-                <Route path="/" element={<DashboardScreen />} />
-                <Route path="/group/:groupId" element={<GroupDetailScreen />} />
-                <Route path="/settings" element={<SettingsScreen />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-        </Routes>
-    );
+  if (authStatus === 'unauthenticated') {
+      return (
+          <Routes>
+              <Route path="*" element={<LoginScreen />} />
+          </Routes>
+      );
+  }
+  
+  // This now only runs for 'authenticated' status
+  return (
+      <Routes>
+          <Route element={<MainLayout />}>
+              <Route path="/" element={<DashboardScreen />} />
+              <Route path="/group/:groupId" element={<GroupDetailScreen />} />
+              <Route path="/settings" element={<SettingsScreen />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+      </Routes>
+  );
 };
 
 export const App: React.FC = () => {

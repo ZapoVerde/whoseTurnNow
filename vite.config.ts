@@ -41,21 +41,22 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // All firebase-related packages go into a dedicated 'vendor-firebase' chunk.
+          // Keep Firebase separate, that's fine.
           if (id.includes('firebase')) {
             return 'vendor-firebase';
           }
-          // All Material-UI related packages go into a 'vendor-mui' chunk.
-          if (id.includes('@mui')) {
-            return 'vendor-mui';
-          }
-          // All react-related packages (react, react-dom, react-router) go into 'vendor-react'.
+          // --- THIS IS THE FIX ---
+          // Group React, React-DOM, React-Router, MUI, and Emotion into a
+          // single, cohesive 'vendor-ui' chunk. This ensures the React
+          // runtime is always available before any UI components try to render.
           if (
-            id.includes('react-router-dom') ||
-            id.includes('react-dom') ||
-            id.includes('react')
+            id.includes('node_modules/react') ||
+            id.includes('node_modules/react-dom') ||
+            id.includes('node_modules/react-router-dom') ||
+            id.includes('node_modules/@mui') ||
+            id.includes('node_modules/@emotion')
           ) {
-            return 'vendor-react';
+            return 'vendor-ui';
           }
         },
       },
