@@ -34,8 +34,7 @@
  */
 
 import {
-  collection, doc, setDoc, query, where, onSnapshot, updateDoc, arrayUnion,
-  arrayRemove, runTransaction, serverTimestamp, orderBy, limit, getDoc,
+  collection, doc, setDoc, query, where, onSnapshot, updateDoc, runTransaction, serverTimestamp, orderBy, limit, getDoc,
   deleteDoc, type Unsubscribe,
 } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
@@ -45,55 +44,105 @@ import type {
   Group, TurnParticipant, LogEntry, TurnCompletedLog, CountsResetLog, TurnUndoneLog,
 } from '../../types/group';
 
+// =================================================================
+// SECTION 1: ADD THIS NEW HELPER FUNCTION
+// =================================================================
+
+/**
+ * A private helper function that serves as the single source of truth for
+ * generating the denormalized UID maps from a `participants` array. This
+ * ensures data consistency across all write operations.
+ * @param participants The array of TurnParticipant objects.
+ * @returns An object containing the derived participantUids and adminUids maps.
+ */
+const _deriveUids = (
+  participants: TurnParticipant[],
+): {
+  participantUids: Record<string, boolean>;
+  adminUids: Record<string, boolean>;
+} => {
+  const participantUids: Record<string, boolean> = {};
+  const adminUids: Record<string, boolean> = {};
+
+  for (const p of participants) {
+    if (p.uid) {
+      participantUids[p.uid] = true;
+      if (p.role === 'admin') {
+        adminUids[p.uid] = true;
+      }
+    }
+  }
+
+  return { participantUids, adminUids };
+};
+
+// =================================================================
+// SECTION 2: THE `createGroup` FUNCTION
+// =================================================================
+
 export async function createGroup(options: {
-    name: string;
-    icon: string;
-    creator: AppUser;
-  }): Promise<string> {
-    const { name, icon, creator } = options;
-    const gid = uuidv4();
-    const participantId = uuidv4();
+  name: string;
+  icon: string;
+  creator: AppUser;
+}): Promise<string> {
+  const { name, icon, creator } = options;
+  const gid = uuidv4();
+  const participantId = uuidv4();
+
+  const creatorParticipant: TurnParticipant = {
+    id: participantId,
+    uid: creator.uid,
+    role: 'admin',
+    turnCount: 0,
+    nickname: creator.displayName ?? 'default',
+  };
+
+  const participants = [creatorParticipant];
+  // --- This is the new logic ---
+  const { participantUids, adminUids } = _deriveUids(participants);
+
+  const newGroup: Group = {
+    gid,
+    name,
+    icon,
+    ownerUid: creator.uid,
+    participants: participants,
+    turnOrder: [participantId],
+    // --- These lines are updated ---
+    participantUids,
+    adminUids,
+  };
+
+  const groupDocRef = doc(db, 'groups', gid);
+  await setDoc(groupDocRef, newGroup);
+  return gid;
+}
   
-    const creatorParticipant: TurnParticipant = {
-      id: participantId,
-      uid: creator.uid,
-      role: 'admin',
-      turnCount: 0,
-      nickname: creator.displayName ?? 'default',
-    };
+  // =================================================================
+// SECTION 8: REPLACE THE `getUserGroups` FUNCTION
+// =================================================================
+
+export function getUserGroups(
+  userId: string,
+  onUpdate: (groups: Group[]) => void,
+): Unsubscribe {
+  const groupsCollectionRef = collection(db, 'groups');
   
-    const newGroup: Group = {
-      gid,
-      name,
-      icon,
-      ownerUid: creator.uid,
-      participants: [creatorParticipant],
-      turnOrder: [participantId],
-      participantUids: [creator.uid],
-    };
-  
-    const groupDocRef = doc(db, 'groups', gid);
-    await setDoc(groupDocRef, newGroup);
-    return gid;
-  }
-  
-  export function getUserGroups(
-    userId: string,
-    onUpdate: (groups: Group[]) => void,
-  ): Unsubscribe {
-    const groupsCollectionRef = collection(db, 'groups');
-    const q = query(
-      groupsCollectionRef,
-      where('participantUids', 'array-contains', userId),
-    );
-  
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const groups = querySnapshot.docs.map((doc) => doc.data() as Group);
-      onUpdate(groups);
-    });
-  
-    return unsubscribe;
-  }
+  // --- THIS IS THE FIX ---
+  // We are now querying for the existence of a key in the participantUids MAP
+  // using dot notation. This is the correct, query-compatible syntax.
+  const q = query(
+    groupsCollectionRef,
+    where(`participantUids.${userId}`, '==', true),
+  );
+
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const groups = querySnapshot.docs.map((doc) => doc.data() as Group);
+    onUpdate(groups);
+  });
+
+  return unsubscribe;
+}
   
   export function getGroup(
     groupId: string,
@@ -105,41 +154,46 @@ export async function createGroup(options: {
     });
   }
   
-  export async function addManagedParticipant(
-    groupId: string,
-    participantName: string,
-  ): Promise<void> {
-    const groupDocRef = doc(db, 'groups', groupId);
+  // =================================================================
+// SECTION 3: REPLACE THE `addManagedParticipant` FUNCTION
+// =================================================================
+export async function addManagedParticipant(
+  groupId: string,
+  participantName: string,
+): Promise<void> {
+  const groupDocRef = doc(db, 'groups', groupId);
 
-    await runTransaction(db, async (transaction) => {
-      // 1. Read the current state of the document.
-      const groupDoc = await transaction.get(groupDocRef);
-      if (!groupDoc.exists()) {
-        throw new Error("Group does not exist!");
-      }
+  await runTransaction(db, async (transaction) => {
+    const groupDoc = await transaction.get(groupDocRef);
+    if (!groupDoc.exists()) {
+      throw new Error('Group does not exist!');
+    }
 
-      const groupData = groupDoc.data() as Group;
-      
-      // 2. Modify the data in memory on the client.
-      const participantId = uuidv4();
-      const newParticipant: TurnParticipant = {
-        id: participantId,
-        uid: null,
-        nickname: participantName,
-        role: 'member',
-        turnCount: 0,
-      };
+    const groupData = groupDoc.data() as Group;
 
-      const newParticipants = [...groupData.participants, newParticipant];
-      const newTurnOrder = [...groupData.turnOrder, participantId];
-      
-      // 3. Write the entire, complete new state back to the database.
-      transaction.update(groupDocRef, {
-        participants: newParticipants,
-        turnOrder: newTurnOrder,
-      });
+    const participantId = uuidv4();
+    const newParticipant: TurnParticipant = {
+      id: participantId,
+      uid: null,
+      nickname: participantName,
+      role: 'member',
+      turnCount: 0,
+    };
+
+    const newParticipants = [...groupData.participants, newParticipant];
+    const newTurnOrder = [...groupData.turnOrder, participantId];
+    // --- This is the new logic ---
+    const { participantUids, adminUids } = _deriveUids(newParticipants);
+
+    transaction.update(groupDocRef, {
+      participants: newParticipants,
+      turnOrder: newTurnOrder,
+      // --- These lines are updated ---
+      participantUids,
+      adminUids,
     });
-  }
+  });
+}
   
   export function getGroupTurnLog(
     groupId: string,
@@ -208,51 +262,70 @@ export async function createGroup(options: {
 /**
  * Updates the role of a specific participant within a group.
  */
+// =================================================================
+// SECTION 4: REPLACE THE `updateParticipantRole` FUNCTION
+// =================================================================
 export async function updateParticipantRole(
   groupId: string,
   participantId: string,
   newRole: 'admin' | 'member',
 ): Promise<void> {
   const groupDocRef = doc(db, 'groups', groupId);
-  const groupSnap = await getDoc(groupDocRef);
-  if (!groupSnap.exists()) {
-    throw new Error('Group not found');
-  }
-  const group = groupSnap.data() as Group;
-  const newParticipants = group.participants.map((p) =>
-    p.id === participantId ? { ...p, role: newRole } : p,
-  );
-  await updateDoc(groupDocRef, { participants: newParticipants });
+  
+  await runTransaction(db, async (transaction) => {
+    const groupDoc = await transaction.get(groupDocRef);
+    if (!groupDoc.exists()) {
+      throw new Error("Group does not exist!");
+    }
+    const group = groupDoc.data() as Group;
+
+    const newParticipants = group.participants.map((p) =>
+      p.id === participantId ? { ...p, role: newRole } : p,
+    );
+    
+    // --- This is the new logic ---
+    const { participantUids, adminUids } = _deriveUids(newParticipants);
+
+    transaction.update(groupDocRef, {
+      participants: newParticipants,
+      participantUids,
+      adminUids,
+    });
+  });
 }
 
 /**
  * Removes a participant from a group entirely.
  */
+// =================================================================
+// SECTION 5: REPLACE THE `removeParticipant` FUNCTION
+// =================================================================
 export async function removeParticipant(
   groupId: string,
   participantId: string,
 ): Promise<void> {
   const groupDocRef = doc(db, 'groups', groupId);
-  const groupSnap = await getDoc(groupDocRef);
-  if (!groupSnap.exists()) {
-    throw new Error('Group not found');
-  }
-  const group = groupSnap.data() as Group;
-  const participantToRemove = group.participants.find((p) => p.id === participantId);
 
-  if (!participantToRemove) return; // Already removed
+  await runTransaction(db, async (transaction) => {
+    const groupDoc = await transaction.get(groupDocRef);
+    if (!groupDoc.exists()) {
+      throw new Error("Group does not exist!");
+    }
+    const group = groupDoc.data() as Group;
 
-  const newParticipants = group.participants.filter((p) => p.id !== participantId);
-  const updatePayload: any = {
-    participants: newParticipants,
-    turnOrder: arrayRemove(participantId),
-  };
+    const newParticipants = group.participants.filter((p) => p.id !== participantId);
+    const newTurnOrder = group.turnOrder.filter((id) => id !== participantId);
+    
+    // --- This is the new logic ---
+    const { participantUids, adminUids } = _deriveUids(newParticipants);
 
-  if (participantToRemove.uid) {
-    updatePayload.participantUids = arrayRemove(participantToRemove.uid);
-  }
-
-  await updateDoc(groupDocRef, updatePayload);
+    transaction.update(groupDocRef, {
+      participants: newParticipants,
+      turnOrder: newTurnOrder,
+      participantUids,
+      adminUids,
+    });
+  });
 }
 
 /**
@@ -323,24 +396,48 @@ export async function deleteGroup(groupId: string): Promise<void> {
  * @param groupId The group to join.
  * @param user The user who is joining.
  */
+// =================================================================
+// SECTION 6: REPLACE THE `joinGroupAsNewParticipant` FUNCTION
+// =================================================================
 export async function joinGroupAsNewParticipant(
   groupId: string,
   user: AppUser,
 ): Promise<void> {
-  const participantId = uuidv4();
-  const newParticipant: TurnParticipant = {
-    id: participantId,
-    uid: user.uid,
-    nickname: user.displayName || 'New User',
-    role: 'member',
-    turnCount: 0,
-  };
-
   const groupDocRef = doc(db, 'groups', groupId);
-  await updateDoc(groupDocRef, {
-    participants: arrayUnion(newParticipant),
-    turnOrder: arrayUnion(participantId),
-    participantUids: arrayUnion(user.uid),
+
+  await runTransaction(db, async (transaction) => {
+    const groupDoc = await transaction.get(groupDocRef);
+    if (!groupDoc.exists()) {
+      throw new Error("Group does not exist!");
+    }
+    const group = groupDoc.data() as Group;
+
+    // Prevent user from joining twice
+    if (group.participantUids[user.uid]) {
+      console.log("User is already in this group.");
+      return;
+    }
+
+    const newParticipant: TurnParticipant = {
+      id: uuidv4(),
+      uid: user.uid,
+      nickname: user.displayName || 'New User',
+      role: 'member',
+      turnCount: 0,
+    };
+
+    const newParticipants = [...group.participants, newParticipant];
+    const newTurnOrder = [...group.turnOrder, newParticipant.id];
+    
+    // --- This is the new logic ---
+    const { participantUids, adminUids } = _deriveUids(newParticipants);
+
+    transaction.update(groupDocRef, {
+      participants: newParticipants,
+      turnOrder: newTurnOrder,
+      participantUids,
+      adminUids,
+    });
   });
 }
 
@@ -370,21 +467,18 @@ export async function claimPlaceholder(
     if (participantIndex === -1) {
       throw new Error('Participant placeholder not found.');
     }
-
-    const targetParticipant = group.participants[participantIndex];
-
-    // --- Validation ---
-    if (targetParticipant.uid !== null) {
+    if (group.participants[participantIndex].uid !== null) {
       throw new Error('This participant slot has already been claimed.');
     }
 
-    // Update the participant and the denormalized UID array
     group.participants[participantIndex].uid = user.uid;
-    const newParticipantUids = [...group.participantUids, user.uid];
+    // --- This is the new logic ---
+    const { participantUids, adminUids } = _deriveUids(group.participants);
 
     transaction.update(groupDocRef, {
       participants: group.participants,
-      participantUids: newParticipantUids,
+      participantUids,
+      adminUids,
     });
   });
 }

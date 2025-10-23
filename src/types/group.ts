@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/types/group.ts
- * @stamp {"ts":"2025-10-22T04:00:00Z"}
+ * @stamp {"ts":"2025-10-23T06:15:00Z"}
  * @architectural-role Type Definition
  * @description Defines the canonical data structures for the application's core domain, including `Group`, `TurnParticipant`, and all `LogEntry` variants.
  * @core-principles
@@ -84,10 +84,19 @@ export interface Group {
    */
   turnOrder: string[];
   /**
-   * A denormalized array of all non-null participant UIDs. This is used
-   * exclusively for efficient Firestore querying.
+   * A denormalized map of all non-null participant UIDs for this group.
+   * @purpose Exists solely to enable efficient, query-compatible Firestore security rules
+   * for checking membership.
+   * @example {'uid-123': true, 'uid-456': true}
    */
-  participantUids: string[];
+  participantUids: Record<string, boolean>;
+  /**
+   * A denormalized map of all participant UIDs who have the 'admin' role.
+   * @purpose Exists solely to enable efficient and reliable Firestore security rules
+   * for checking admin permissions, avoiding unreliable `.filter()` operations.
+   * @example {'uid-123': true}
+   */
+  adminUids: Record<string, boolean>;
 }
 
 /**
@@ -125,10 +134,10 @@ export interface TurnCompletedLog {
    */
   isUndone?: boolean;
   /**
-   * A denormalized snapshot of the parent group's `participantUids` array at the
+   * A denormalized snapshot of the parent group's `participantUids` map at the
    * time of logging. This field exists solely to enable secure Firestore rule queries.
    */
-  _participantUids: string[];
+  _participantUids: Record<string, boolean>;
 }
 
 /**
@@ -153,10 +162,10 @@ export interface CountsResetLog {
    */
   actorName: string;
   /**
-   * A denormalized snapshot of the parent group's `participantUids` array at the
+   * A denormalized snapshot of the parent group's `participantUids` map at the
    * time of logging. This field exists solely to enable secure Firestore rule queries.
    */
-  _participantUids: string[];
+  _participantUids: Record<string, boolean>;
 }
 
 /**
@@ -185,10 +194,10 @@ export interface TurnUndoneLog {
      */
     originalParticipantName: string;
     /**
-     * A denormalized snapshot of the parent group's `participantUids` array at the
+     * A denormalized snapshot of the parent group's `participantUids` map at the
      * time of logging. This field exists solely to enable secure Firestore rule queries.
      */
-    _participantUids: string[];
+    _participantUids: Record<string, boolean>;
 }
 
 
