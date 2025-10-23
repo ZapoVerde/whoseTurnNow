@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/GroupDetailScreen.tsx
- * @stamp {"ts":"2025-10-23T08:30:00Z"}
+ * @stamp {"ts":"2025-10-23T08:35:00Z"}
  * @architectural-role UI Component
  * @description
  * The top-level UI component for the Group Detail feature. It acts as a "dumb"
@@ -110,9 +110,6 @@ export const GroupDetailScreen: FC = () => {
   return (
     <>
       <Box component="main" sx={{ pb: 12 }}>
-        {/* --- THIS IS THE FIX --- */}
-        {/* The redundant props have been removed. The GroupHeader is now only */}
-        {/* responsible for displaying the group's name and icon. */}
         <GroupHeader group={group} />
         <ParticipantList
           participants={orderedParticipants}
@@ -159,19 +156,29 @@ export const GroupDetailScreen: FC = () => {
               Invite to Claim Spot
             </MenuItem>
           )}
-          {isAdmin && participantMenu.selectedParticipant.uid !== user?.uid &&
-            (participantMenu.selectedParticipant.role === 'member' ? (
-              <MenuItem onClick={() => actions.handleRoleChange('admin')}>
-                Promote to Admin
-              </MenuItem>
-            ) : (
-              <MenuItem
-                onClick={() => actions.handleRoleChange('member')}
-                disabled={isLastAdmin && participantMenu.selectedParticipant.role === 'admin'}
-              >
-                Demote to Member
-              </MenuItem>
-            ))}
+          {isAdmin &&
+            participantMenu.selectedParticipant.uid !== user?.uid && (
+              <>
+                {/* --- THIS IS THE FIX --- */}
+                {/* The "Promote" option is now only shown if the target is a member AND has a linked user account (uid is not null). */}
+                {participantMenu.selectedParticipant.role === 'member' &&
+                participantMenu.selectedParticipant.uid !== null ? (
+                  <MenuItem onClick={() => actions.handleRoleChange('admin')}>
+                    Promote to Admin
+                  </MenuItem>
+                ) : participantMenu.selectedParticipant.role === 'admin' ? (
+                  <MenuItem
+                    onClick={() => actions.handleRoleChange('member')}
+                    disabled={
+                      isLastAdmin &&
+                      participantMenu.selectedParticipant.role === 'admin'
+                    }
+                  >
+                    Demote to Member
+                  </MenuItem>
+                ) : null}
+              </>
+            )}
           {isAdmin && participantMenu.selectedParticipant.uid !== user?.uid && (
             <MenuItem onClick={actions.handleRemoveParticipant}>
               Remove Participant
