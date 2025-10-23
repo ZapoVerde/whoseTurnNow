@@ -1,37 +1,42 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/hooks/useGroupActions.ts
+ * @stamp {"ts":"2025-10-23T11:00:00Z"}
  * @architectural-role Hook
  * @description
  * The "Hands" of the Group Detail feature. This hook is a collection of all
  * user-initiated actions that cause a state change. It encapsulates the logic
  * for calling the repository, managing submission states, and providing user feedback.
- *
  * @core-principles
  * 1. IS a collection of memoized action handlers (`useCallback`).
  * 2. OWNS the "transient" UI states related to actions (e.g., `isSubmitting`, `feedback`).
- * 3. DELEGATES all I/O to the `groupsRepository`.
+ * 3. DELEGATES all I/O to the `groupsRepository` module.
  * 4. MUST be stateless regarding core business data; it receives the necessary
  *    context from its props to perform its actions.
- *
  * @api-declaration
  *   - useGroupActions: The exported hook function.
- *
  * @contract
  *   assertions:
- *     purity: mutates # This hook's purpose is to orchestrate side effects.
+ *     purity: mutates
  *     state_ownership: [isSubmitting, feedback, newParticipantName]
- *     external_io: firestore # It initiates repository calls that perform I/O.
+ *     external_io: firestore
  */
 
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import * as groupsRepository from '../groupsRepository';
+import { groupsRepository } from '../repository';
 import type { AppUser } from '../../auth/useAuthStore';
-import type { LogEntry, TurnCompletedLog, TurnParticipant } from '../../../types/group';
+import type {
+  Group,
+  LogEntry,
+  TurnCompletedLog,
+  TurnParticipant,
+} from '../../../types/group';
 
-// The props for this hook are all the pieces of context it needs to perform its actions.
 interface GroupActionsProps {
   groupId: string | undefined;
+  // --- THIS IS NEW ---
+  // The full group object is now required to perform settings updates.
+  group: Group | null;
   user: AppUser | null;
   currentUserParticipant: TurnParticipant | null;
   isUserTurn: boolean;
@@ -41,6 +46,7 @@ interface GroupActionsProps {
 
 export function useGroupActions({
   groupId,
+  group,
   user,
   currentUserParticipant,
   isUserTurn,
@@ -49,8 +55,30 @@ export function useGroupActions({
 }: GroupActionsProps) {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
+  const [feedback, setFeedback] = useState<{
+    message: string;
+    severity: 'success' | 'error';
+  } | null>(null);
   const [newParticipantName, setNewParticipantName] = useState('');
+
+  // --- ADD THIS NEW ACTION ---
+  const handleUpdateGroupIcon = useCallback(
+    async (newIcon: string) => {
+      if (!groupId || !group || !newIcon.trim()) return;
+
+      try {
+        await groupsRepository.updateGroupSettings(groupId, {
+          name: group.name, // Preserve the existing name
+          icon: newIcon.trim(),
+        });
+        setFeedback({ message: 'Group icon updated!', severity: 'success' });
+      } catch (error) {
+        console.error('Failed to update group icon:', error);
+        setFeedback({ message: 'Failed to update icon.', severity: 'error' });
+      }
+    },
+    [groupId, group],
+  );
 
   const handleTurnAction = useCallback(async () => {
     if (!groupId || !user || !currentUserParticipant) return;
@@ -61,7 +89,11 @@ export function useGroupActions({
 
     setIsSubmitting(true);
     try {
-      await groupsRepository.completeTurnTransaction(groupId, user, participantToMoveId);
+      await groupsRepository.completeTurnTransaction(
+        groupId,
+        user,
+        participantToMoveId,
+      );
     } catch (error) {
       console.error('Failed to complete turn:', error);
       setFeedback({ message: 'Failed to complete turn.', severity: 'error' });
@@ -74,11 +106,17 @@ export function useGroupActions({
     if (!groupId || !newParticipantName.trim()) return;
     setIsSubmitting(true);
     try {
-      await groupsRepository.addManagedParticipant(groupId, newParticipantName.trim());
+      await groupsRepository.addManagedParticipant(
+        groupId,
+        newParticipantName.trim(),
+      );
       setNewParticipantName('');
     } catch (error) {
       console.error('Failed to add participant:', error);
-      setFeedback({ message: 'Failed to add participant.', severity: 'error' });
+      setFeedback({
+        message: 'Failed to add participant.',
+        severity: 'error',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -89,7 +127,7 @@ export function useGroupActions({
       if (!groupId) return;
       await groupsRepository.updateParticipantRole(groupId, participantId, newRole);
     },
-    [groupId]
+    [groupId],
   );
 
   const handleRemoveParticipant = useCallback(
@@ -97,7 +135,7 @@ export function useGroupActions({
       if (!groupId) return;
       await groupsRepository.removeParticipant(groupId, participantId);
     },
-    [groupId]
+    [groupId],
   );
 
   const handleLeaveGroup = useCallback(async () => {
@@ -121,7 +159,10 @@ export function useGroupActions({
     setIsSubmitting(true);
     try {
       await groupsRepository.undoTurnTransaction(groupId, user, undoableAction);
-      setFeedback({ message: 'Last turn successfully undone.', severity: 'success' });
+      setFeedback({
+        message: 'Last turn successfully undone.',
+        severity: 'success',
+      });
     } catch (error) {
       console.error('Failed to undo turn:', error);
       setFeedback({ message: 'Failed to undo turn.', severity: 'error' });
@@ -144,13 +185,14 @@ export function useGroupActions({
       navigator.clipboard.writeText(url);
       setFeedback({ message: 'Claim link for spot copied!', severity: 'success' });
     },
-    [groupId]
+    [groupId],
   );
 
   const formatLogEntry = useCallback((log: LogEntry) => {
     switch (log.type) {
       case 'TURN_COMPLETED':
-        const byActor = log.actorUid !== log.participantId ? ` by ${log.actorName}` : '';
+        const byActor =
+          log.actorUid !== log.participantId ? ` by ${log.actorName}` : '';
         return `${log.participantName}'s turn was completed${byActor}.`;
       case 'COUNTS_RESET':
         return `All turn counts were reset by ${log.actorName}.`;
@@ -177,6 +219,8 @@ export function useGroupActions({
     handleConfirmUndo,
     handleCopyGenericLink,
     handleCopyClaimLink,
+    // --- EXPOSE THE NEW ACTION ---
+    handleUpdateGroupIcon,
     formatLogEntry,
   };
 }

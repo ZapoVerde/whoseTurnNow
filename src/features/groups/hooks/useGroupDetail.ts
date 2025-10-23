@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/hooks/useGroupDetail.ts
- * @stamp {"ts":"2025-10-23T00:50:00Z"}
+ * @stamp {"ts":"2025-10-23T11:05:00Z"}
  * @architectural-role Orchestrator
  * @description
  * The primary "Conductor" hook for the Group Detail feature. It composes all
@@ -20,7 +20,7 @@
  *   assertions:
  *     purity: mutates # This hook uses useEffect to orchestrate data loading.
  *     state_ownership: none # It reads from global stores but owns no global state slices.
- *     external_io: none # It delegates all I/O to other hooks and does not import from Firebase directly.
+ *     external_io: none # It delegates all I/O to other hooks.
  */
 
 import { useEffect, useState, type MouseEvent } from 'react';
@@ -41,16 +41,20 @@ export function useGroupDetail(groupId: string | undefined) {
   const derivedState = useGroupDerivedState(group, user, turnLog);
 
   // 3. Delegate action handlers to the "Hands" hook
-  const actions = useGroupActions({ groupId, user, ...derivedState });
+  // --- FIX: Pass the 'group' object, which is now a required prop ---
+  const actions = useGroupActions({ groupId, user, group, ...derivedState });
 
   // 4. Manage primitive UI state
   const groupMenu = useMenuState();
   const participantMenu = useMenuState();
+  // --- ADD THIS NEW STATE ---
+  const iconPickerMenu = useMenuState();
   const deleteDialog = useDialogState(actions.handleConfirmDelete);
   const resetDialog = useDialogState(actions.handleConfirmReset);
   const undoDialog = useDialogState(actions.handleConfirmUndo);
-  
-  const [selectedParticipant, setSelectedParticipant] = useState<TurnParticipant | null>(null);
+
+  const [selectedParticipant, setSelectedParticipant] =
+    useState<TurnParticipant | null>(null);
 
   // 5. Handle side effects (data loading)
   useEffect(() => {
@@ -61,11 +65,14 @@ export function useGroupDetail(groupId: string | undefined) {
   }, [groupId, loadGroupAndLog, cleanup]);
 
   // 6. Create composite handlers that combine UI state logic with actions
-  const handleOpenParticipantMenu = (event: MouseEvent<HTMLElement>, participant: TurnParticipant) => {
+  const handleOpenParticipantMenu = (
+    event: MouseEvent<HTMLElement>,
+    participant: TurnParticipant,
+  ) => {
     setSelectedParticipant(participant);
     participantMenu.handleOpen(event);
   };
-  
+
   const handleCloseParticipantMenu = () => {
     participantMenu.handleClose();
     setTimeout(() => setSelectedParticipant(null), 150);
@@ -91,19 +98,22 @@ export function useGroupDetail(groupId: string | undefined) {
     }
     handleCloseParticipantMenu();
   };
-  
+
+  // --- ADD THIS NEW HANDLER ---
+  const handleIconSelect = (newIcon: string) => {
+    actions.handleUpdateGroupIcon(newIcon);
+    // No need to close the menu here, the popover closes itself on selection
+  };
+
   // 7. Assemble and return the final, clean view model for the component
   return {
-    // Raw Data
     group,
     turnLog,
     isLoading,
     user,
-    
-    // Derived State (from the "Brain")
+
     ...derivedState,
-    
-    // Actions & Action-related State (from the "Hands")
+
     isSubmitting: actions.isSubmitting,
     feedback: actions.feedback,
     addParticipantForm: {
@@ -111,8 +121,7 @@ export function useGroupDetail(groupId: string | undefined) {
       setName: actions.setNewParticipantName,
       handleSubmit: actions.handleAddParticipant,
     },
-    
-    // Composed UI State
+
     groupMenu,
     participantMenu: {
       ...participantMenu,
@@ -120,16 +129,19 @@ export function useGroupDetail(groupId: string | undefined) {
       handleOpen: handleOpenParticipantMenu,
       handleClose: handleCloseParticipantMenu,
     },
+    // --- EXPOSE NEW STATE ---
+    iconPickerMenu,
     resetDialog,
     deleteDialog,
     undoDialog,
 
-    // Actions that need to be composed with local UI state
     actions: {
       ...actions,
       handleRoleChange,
       handleRemoveParticipant,
       handleCopyClaimLink,
+      // --- EXPOSE NEW HANDLER ---
+      handleIconSelect,
     },
   };
 }

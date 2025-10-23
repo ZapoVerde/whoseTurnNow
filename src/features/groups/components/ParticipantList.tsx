@@ -1,31 +1,32 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/components/ParticipantList.tsx
- * @stamp {"ts":"2025-10-21T18:02:00Z"}
+ * @stamp {"ts":"2025-10-23T09:00:00Z"}
  * @architectural-role UI Component
  * @description
  * A presentational component responsible for rendering the ordered list of
- * participants, including their turn status, role, and statistics.
+ * participants as a stack of cards. It provides a clear "spotlight" effect for
+ * the active participant (at index 0) using a themed box-shadow.
  * @core-principles
  * 1. IS a pure, presentational ("dumb") component.
  * 2. MUST render the participant list based solely on the props it receives.
  * 3. DELEGATES all user interactions (clicks) to its parent component via callbacks.
+ * 4. MUST use a card-based layout to visually separate participants.
  * @api-declaration
  *   - default: The ParticipantList React functional component.
  * @contract
  *   assertions:
- *     purity: pure # This component's output depends only on its props and has no side effects.
- *     state_ownership: none # This component does not own or manage any state.
- *     external_io: none # This component does not perform any network or file system I/O.
+ *     purity: pure # This component's output depends only on its props.
+ *     state_ownership: none
+ *     external_io: none
  */
 
 import { type FC, type MouseEvent } from 'react';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
+import { useTheme } from '@mui/material/styles';
+import Stack from '@mui/material/Stack';
+import Card from '@mui/material/Card';
 import ListItemButton from '@mui/material/ListItemButton';
-import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Chip from '@mui/material/Chip';
-import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import type { TurnParticipant } from '../../../types/group';
 
@@ -41,24 +42,29 @@ export const ParticipantList: FC<ParticipantListProps> = ({
   participants,
   onParticipantClick,
 }) => {
+  const theme = useTheme();
+
   return (
-    <List sx={{ mt: 4 }}>
+    <Stack spacing={1} sx={{ mt: 4 }}>
       {participants.map((participant, index) => (
-        <ListItem key={participant.id} divider disablePadding>
+        <Card
+          key={participant.id}
+          sx={{
+            // --- THIS IS THE FIX ---
+            // Apply the "subtle glow" using the primary theme color only to the
+            // first participant in the list.
+            boxShadow:
+              index === 0
+                ? `0 0 8px 2px ${theme.palette.primary.main}`
+                : theme.shadows[1],
+            // Ensure the border is consistent with other cards in the app.
+            border: `1px solid ${theme.palette.divider}`,
+          }}
+        >
           <ListItemButton onClick={(e) => onParticipantClick(e, participant)}>
-            {index === 0 && (
-              <ListItemIcon sx={{ minWidth: 4 }}>
-                <ArrowForwardIosIcon
-                  data-testid="ArrowForwardIosIcon"
-                  fontSize="small"
-                  color="primary"
-                />
-              </ListItemIcon>
-            )}
             <ListItemText
               primary={participant.nickname || 'Unnamed'}
               secondary={`Turns: ${participant.turnCount}`}
-              inset={index !== 0}
             />
             {participant.role === 'admin' && (
               <Chip
@@ -68,8 +74,8 @@ export const ParticipantList: FC<ParticipantListProps> = ({
               />
             )}
           </ListItemButton>
-        </ListItem>
+        </Card>
       ))}
-    </List>
+    </Stack>
   );
 };

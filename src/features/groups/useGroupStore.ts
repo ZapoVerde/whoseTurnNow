@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/useGroupStore.ts
- * @stamp {"ts":"2025-10-21T14:55:00Z"}
+ * @stamp {"ts":"2025-10-23T10:25:00Z"}
  * @architectural-role State Management
  *
  * @description
@@ -12,7 +12,7 @@
  * 1. IS the single source of truth for the currently viewed group's state.
  * 2. OWNS the client-side representation of the active `Group` and its `LogEntry` collection.
  * 3. MUST be updated only via its exposed action handlers, which orchestrate data
- *    fetching and subscriptions.
+ *    fetching and subscriptions by delegating to the `repository`.
  *
  * @api-declaration
  *   - `useGroupStore`: The exported Zustand store hook for the active group.
@@ -24,16 +24,15 @@
  *     external_io: none # It delegates all I/O to the repository, only managing the results.
  */
 
-
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { Unsubscribe } from 'firebase/firestore';
-import { getGroup, getGroupTurnLog } from './groupsRepository';
+// --- FIX: Import from the new repository facade ---
+import { groupsRepository } from './repository';
 import type { Group, LogEntry } from '../../types/group';
 
 interface GroupState {
   group: Group | null;
-  // FIX: The turnLog state is now defined to hold log entries that include an 'id'.
   turnLog: (LogEntry & { id: string })[];
   isLoading: boolean;
   _unsubscribeGroup: Unsubscribe | null;
@@ -61,14 +60,14 @@ export const useGroupStore = create<GroupState>()(
         state.isLoading = true;
       });
 
-      const unsubGroup = getGroup(groupId, (groupData) => {
+      const unsubGroup = groupsRepository.getGroup(groupId, (groupData) => {
         set((state) => {
           state.group = groupData;
-          state.isLoading = false; 
+          state.isLoading = false;
         });
       });
 
-      const unsubLog = getGroupTurnLog(groupId, (logData) => {
+      const unsubLog = groupsRepository.getGroupTurnLog(groupId, (logData) => {
         set((state) => {
           state.turnLog = logData;
         });

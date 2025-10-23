@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/invitations/InvitationScreen.tsx
- * @stamp {"ts":"2025-10-21T16:00:00Z"}
+ * @stamp {"ts":"2025-10-23T10:50:00Z"}
  * @architectural-role Feature Entry Point
  * @description
  * Manages the entire user flow for accepting an invitation, handling both
@@ -8,7 +8,7 @@
  * @core-principles
  * 1. OWNS the logic for parsing invitation context from the URL.
  * 2. ORCHESTRATES the user authentication flow for new invitees.
- * 3. DELEGATES the final data mutation for joining a group to the `groupsRepository`.
+ * 3. DELEGATES the final data mutation for joining a group to the `groupsRepository` module.
  * @api-declaration
  *   - default: The InvitationScreen React functional component.
  * @contract
@@ -18,7 +18,7 @@
  *     external_io: firestore # It initiates calls that result in Firestore I/O.
  */
 
-import  { useState, useEffect, type FC } from 'react';
+import { useState, useEffect, type FC } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import Container from '@mui/material/Container';
 import Box from '@mui/material/Box';
@@ -27,11 +27,8 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import { useAuthStore } from '../auth/useAuthStore';
 import { LoginScreen } from '../auth/LoginScreen';
-import {
-  joinGroupAsNewParticipant,
-  claimPlaceholder,
-  getGroupOnce, 
-} from '../groups/groupsRepository';
+// --- FIX: Import the unified repository object ---
+import { groupsRepository } from '../groups/repository';
 import type { Group } from '../../types/group';
 
 export const InvitationScreen: FC = () => {
@@ -46,25 +43,23 @@ export const InvitationScreen: FC = () => {
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Effect to fetch group details to display the name
   useEffect(() => {
     if (!groupId) return;
 
-    // Use an async function to perform the one-time read.
     const fetchGroupData = async () => {
       try {
-        const group = await getGroupOnce(groupId);
+        // --- FIX: Call method on the repository object ---
+        const group = await groupsRepository.getGroupOnce(groupId);
         setGroupData(group);
       } catch (err) {
-        console.error("Failed to fetch group data for invitation:", err);
-        setError("Could not load invitation details.");
+        console.error('Failed to fetch group data for invitation:', err);
+        setError('Could not load invitation details.');
       }
     };
 
     fetchGroupData();
   }, [groupId]);
 
-  // Effect to handle the joining logic once the user is authenticated
   useEffect(() => {
     if (!user || !groupId || isJoining || !groupData) {
       return;
@@ -75,16 +70,17 @@ export const InvitationScreen: FC = () => {
       setError(null);
       try {
         if (participantId) {
-          // Targeted "Hand-off" flow
-          await claimPlaceholder(groupId, participantId, user);
+          await groupsRepository.claimPlaceholder(groupId, participantId, user);
         } else {
-          // Generic invitation flow
-          await joinGroupAsNewParticipant(groupId, user);
+          await groupsRepository.joinGroupAsNewParticipant(groupId, user);
         }
         navigate(`/group/${groupId}`, { replace: true });
       } catch (err: any) {
         console.error('Failed to join group:', err);
-        setError(err.message || 'Could not join the group. The link may be invalid or you may already be a member.');
+        setError(
+          err.message ||
+            'Could not join the group. The link may be invalid or you may already be a member.',
+        );
       } finally {
         setIsJoining(false);
       }
@@ -96,7 +92,9 @@ export const InvitationScreen: FC = () => {
   if (error) {
     return (
       <Container component="main" maxWidth="xs" sx={{ mt: 8, textAlign: 'center' }}>
-        <Typography variant="h5" gutterBottom>Error</Typography>
+        <Typography variant="h5" gutterBottom>
+          Error
+        </Typography>
         <Alert severity="error">{error}</Alert>
       </Container>
     );
@@ -139,7 +137,6 @@ export const InvitationScreen: FC = () => {
     );
   }
 
-  // This state should be brief as the joining effect will trigger and navigate
   return (
     <Box
       sx={{

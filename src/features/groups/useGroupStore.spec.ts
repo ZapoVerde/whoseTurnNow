@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/useGroupStore.spec.ts
- * @stamp {"ts":"2025-10-21T15:00:00Z"}
+ * @stamp {"ts":"2025-10-23T10:20:00Z"}
  * @test-target packages/whoseturnnow/src/features/groups/useGroupStore.ts
  *
  * @description
@@ -19,21 +19,24 @@
  *     external_io: none # Mocks MUST prevent any actual I/O.
  */
 
-import { describe, it, expect, vi, beforeEach,  } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act } from '@testing-library/react';
 import type { Mock } from 'vitest';
 
 // --- Mocks ---
-vi.mock('./groupsRepository');
+// --- FIX: Update the mock path to the new repository module ---
+vi.mock('./repository');
 
 // --- Imports ---
 import { useGroupStore } from './useGroupStore';
-import { getGroup, getGroupTurnLog } from './groupsRepository';
+// --- FIX: Import the unified repository object ---
+import { groupsRepository } from './repository';
 import type { Group, LogEntry } from '../../types/group';
 
 // --- Test Setup ---
-const mockGetGroup = getGroup as Mock;
-const mockGetGroupTurnLog = getGroupTurnLog as Mock;
+// --- FIX: Get typed mocks from the repository object ---
+const mockGetGroup = vi.mocked(groupsRepository.getGroup);
+const mockGetGroupTurnLog = vi.mocked(groupsRepository.getGroupTurnLog);
 
 const mockGroup: Group = {
   gid: 'test-group-1',
@@ -42,28 +45,27 @@ const mockGroup: Group = {
   ownerUid: 'owner-1',
   participants: [],
   turnOrder: [],
-  participantUids: [],
+  participantUids: {},
+  adminUids: {},
 };
 
-const mockTurnLog: LogEntry[] = [
-    {
-      type: 'TURN_COMPLETED',
-      completedAt: null as any, // Firestore FieldValue is complex to mock
-      participantId: 'p-1',
-      participantName: 'Alice',
-      actorUid: 'u-1',
-      actorName: 'Alice',
-      // NEW: This field is now required to match the updated type.
-      _participantUids: ['u-1', 'owner-1'], 
-    },
-  ];
+const mockTurnLog: (LogEntry & { id: string })[] = [
+  {
+    id: 'log-1',
+    type: 'TURN_COMPLETED',
+    completedAt: null as any,
+    participantId: 'p-1',
+    participantName: 'Alice',
+    actorUid: 'u-1',
+    actorName: 'Alice',
+    _participantUids: {},
+  },
+];
 
 describe('useGroupStore', () => {
-  // Get the initial state to reset the store between tests
   const initialState = useGroupStore.getState();
 
   beforeEach(() => {
-    // Reset the store to its initial state before each test
     useGroupStore.setState(initialState);
     vi.clearAllMocks();
   });
@@ -71,9 +73,8 @@ describe('useGroupStore', () => {
   it('should load group and log data, update state, and set loading to false', () => {
     // ARRANGE
     let groupUpdateCallback: (group: Group | null) => void;
-    let logUpdateCallback: (logs: LogEntry[]) => void;
+    let logUpdateCallback: (logs: (LogEntry & { id: string })[]) => void;
 
-    // Add explicit types to the mock implementation parameters
     mockGetGroup.mockImplementation(
       (_groupId: string, onUpdate: (group: Group | null) => void) => {
         groupUpdateCallback = onUpdate;
@@ -81,13 +82,13 @@ describe('useGroupStore', () => {
       },
     );
     mockGetGroupTurnLog.mockImplementation(
-      (_groupId: string, onUpdate: (logs: LogEntry[]) => void) => {
+      (_groupId: string, onUpdate: (logs: (LogEntry & { id: string })[]) => void) => {
         logUpdateCallback = onUpdate;
         return vi.fn();
       },
     );
+
     // ACT
-    // 1. Call the action that sets up the listeners
     act(() => {
       useGroupStore.getState().loadGroupAndLog('test-group-1');
     });
@@ -95,7 +96,7 @@ describe('useGroupStore', () => {
     // ASSERT initial loading state
     expect(useGroupStore.getState().isLoading).toBe(true);
 
-    // 2. Simulate the repository sending updates
+    // ACT: Simulate the repository sending updates
     act(() => {
       groupUpdateCallback(mockGroup);
       logUpdateCallback(mockTurnLog);
@@ -114,38 +115,31 @@ describe('useGroupStore', () => {
     // ARRANGE
     const mockUnsubscribeGroup = vi.fn();
     const mockUnsubscribeLog = vi.fn();
-
-    // Set up mocks to return our specific unsubscribe functions
     mockGetGroup.mockReturnValue(mockUnsubscribeGroup);
     mockGetGroupTurnLog.mockReturnValue(mockUnsubscribeLog);
 
     // ACT
-    // 1. Load data to activate the subscriptions
     act(() => {
       useGroupStore.getState().loadGroupAndLog('test-group-1');
     });
 
-    // 2. Simulate data arriving to move out of the initial loading state
     act(() => {
-        useGroupStore.setState({ group: mockGroup, isLoading: false });
+      useGroupStore.setState({ group: mockGroup, isLoading: false });
     });
-
 
     // ASSERT that we are in a "loaded" state before cleanup
     expect(useGroupStore.getState().group).toEqual(mockGroup);
     expect(useGroupStore.getState().isLoading).toBe(false);
 
-    // 3. Call the cleanup action
+    // ACT: Call the cleanup action
     act(() => {
       useGroupStore.getState().cleanup();
     });
 
     // ASSERT
-    // 1. Verify that the unsubscribe functions were called
     expect(mockUnsubscribeGroup).toHaveBeenCalledTimes(1);
     expect(mockUnsubscribeLog).toHaveBeenCalledTimes(1);
 
-    // 2. Verify that the state was reset to its initial values
     const finalState = useGroupStore.getState();
     expect(finalState.group).toBeNull();
     expect(finalState.turnLog).toEqual([]);

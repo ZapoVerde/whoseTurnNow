@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/GroupDetailScreen.tsx
- * @stamp {"ts":"2025-10-23T08:35:00Z"}
+ * @stamp {"ts":"2025-10-23T11:50:00Z"}
  * @architectural-role UI Component
  * @description
  * The top-level UI component for the Group Detail feature. It acts as a "dumb"
@@ -16,9 +16,9 @@
  *   - default: The `GroupDetailScreen` React functional component.
  * @contract
  *   assertions:
- *     purity: pure # This component is a pure function of the state provided by its hook.
- *     state_ownership: none # All state is owned by the `useGroupDetail` hook.
- *     external_io: none # All I/O is initiated by the `useGroupDetail` hook.
+ *     purity: pure
+ *     state_ownership: none
+ *     external_io: none
  */
 
 import { useMemo, type FC } from 'react';
@@ -49,6 +49,7 @@ import {
   ResetCountsConfirmationDialog,
   DeleteGroupConfirmationDialog,
 } from './components/GroupManagementDialogs';
+import { EmojiPickerPopover } from '../../shared/components/EmojiPickerPopover';
 
 export const GroupDetailScreen: FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
@@ -70,6 +71,7 @@ export const GroupDetailScreen: FC = () => {
     addParticipantForm,
     groupMenu,
     participantMenu,
+    iconPickerMenu,
     resetDialog,
     deleteDialog,
     undoDialog,
@@ -126,6 +128,11 @@ export const GroupDetailScreen: FC = () => {
         <TurnHistory turnLog={turnLog} formatLogEntry={actions.formatLogEntry} />
       </Box>
 
+      {/* --- THIS IS THE FIX --- */}
+      {/* The redundant, non-functional "Reset All Turn Counts" button that was */}
+      {/* previously rendered here has been completely removed. The correct */}
+      {/* implementation in the kebab menu is now the single source of truth. */}
+
       <GroupActionButtons
         isParticipant={!!currentUserParticipant}
         onTurnAction={actions.handleTurnAction}
@@ -140,6 +147,14 @@ export const GroupDetailScreen: FC = () => {
         open={groupMenu.isOpen}
         onClose={groupMenu.handleClose}
       >
+        <MenuItem
+          onClick={(e) => {
+            groupMenu.handleClose();
+            iconPickerMenu.handleOpen(e);
+          }}
+        >
+          Change Icon
+        </MenuItem>
         <MenuItem onClick={actions.handleCopyGenericLink}>Invite</MenuItem>
         <MenuItem onClick={resetDialog.handleOpen}>Reset All Turn Counts</MenuItem>
         <MenuItem onClick={deleteDialog.handleOpen}>Delete Group</MenuItem>
@@ -159,8 +174,6 @@ export const GroupDetailScreen: FC = () => {
           {isAdmin &&
             participantMenu.selectedParticipant.uid !== user?.uid && (
               <>
-                {/* --- THIS IS THE FIX --- */}
-                {/* The "Promote" option is now only shown if the target is a member AND has a linked user account (uid is not null). */}
                 {participantMenu.selectedParticipant.role === 'member' &&
                 participantMenu.selectedParticipant.uid !== null ? (
                   <MenuItem onClick={() => actions.handleRoleChange('admin')}>
@@ -192,6 +205,13 @@ export const GroupDetailScreen: FC = () => {
         </Menu>
       )}
 
+      <EmojiPickerPopover
+        open={iconPickerMenu.isOpen}
+        anchorEl={iconPickerMenu.anchorEl}
+        onClose={iconPickerMenu.handleClose}
+        onEmojiSelect={actions.handleIconSelect}
+      />
+
       <ResetCountsConfirmationDialog
         open={resetDialog.isOpen}
         onClose={resetDialog.handleClose}
@@ -202,11 +222,13 @@ export const GroupDetailScreen: FC = () => {
         onClose={deleteDialog.handleClose}
         onConfirm={deleteDialog.handleConfirm}
       />
+
       <Dialog open={undoDialog.isOpen} onClose={undoDialog.handleClose}>
         <DialogTitle>Undo Last Turn?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This will reverse the turn taken by "{undoableAction?.participantName}". This action will be logged. Are you sure?
+            This will reverse the turn taken by "{undoableAction?.participantName}
+            ". This action will be logged. Are you sure?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -216,7 +238,7 @@ export const GroupDetailScreen: FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-      
+
       <Snackbar
         open={!!feedback}
         autoHideDuration={4000}

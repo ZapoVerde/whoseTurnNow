@@ -26,7 +26,7 @@ vi.mock('react-router-dom', () => ({
   useNavigate: vi.fn(),
 }));
 vi.mock('../auth/useAuthStore');
-vi.mock('../groups/groupsRepository');
+vi.mock('../groups/repository');
 // Mock the dialog to verify it opens, without needing its full implementation
 vi.mock('../groups/CreateListDialog', () => ({
   CreateListDialog: vi.fn(({ open }) => (open ? <div>Create List Dialog Open</div> : null)),
@@ -35,7 +35,7 @@ vi.mock('../groups/CreateListDialog', () => ({
 // --- Imports ---
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../auth/useAuthStore';
-import { getUserGroups } from '../groups/groupsRepository';
+import { getUserGroups } from '../groups/repository';
 import { DashboardScreen } from './DashboardScreen';
 import type { Group } from '../../types/group';
 import type { AppUser } from '../auth/useAuthStore';

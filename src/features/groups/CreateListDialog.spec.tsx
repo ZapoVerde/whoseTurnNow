@@ -17,12 +17,12 @@ vi.mock('react-router-dom', () => ({
   useNavigate: vi.fn(),
 }));
 vi.mock('../auth/useAuthStore');
-vi.mock('./groupsRepository');
+vi.mock('./repository');
 
 // --- Imports ---
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../auth/useAuthStore';
-import { createGroup } from './groupsRepository';
+import { createGroup } from './repository';
 import { CreateListDialog } from './CreateListDialog';
 import type { AppUser } from '../auth/useAuthStore';
 

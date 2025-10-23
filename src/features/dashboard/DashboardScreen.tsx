@@ -1,15 +1,17 @@
 /**
  * @file packages/whoseturnnow/src/features/dashboard/DashboardScreen.tsx
- * @stamp {"ts":"2025-10-22T18:45:00Z"}
- * @architectural-role UI Component
+ * @stamp {"ts":"2025-10-23T11:25:00Z"}
+ * @architectural-role UI Component, Orchestrator
  * @description
- * Renders the user's main dashboard. It uses the `useAppBar` hook to configure
- * the global AppBar with a title and a settings menu, providing the entry
- * points for list creation and account settings.
+ * Renders the user's main dashboard and acts as an orchestrator for performance
+ * optimizations. It fetches and displays the user's lists and opportunistically
+ * pre-loads non-critical assets like the emoji picker to improve subsequent
+ * interaction performance.
  * @core-principles
  * 1. IS the primary UI for displaying a user's collection of lists.
- * 2. DELEGATES all data fetching to the `groupsRepository`.
- * 3. MUST declaratively configure the global AppBar for its context.
+ * 2. MUST declaratively configure the global AppBar for its context.
+ * 3. MUST orchestrate the pre-loading of non-critical, lazy-loaded assets.
+ * 4. DELEGATES all data fetching to the `groupsRepository` module.
  * @api-declaration
  *   - default: The DashboardScreen React functional component.
  * @contract
@@ -36,11 +38,16 @@ import MenuItem from '@mui/material/MenuItem';
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { useAuthStore } from '../auth/useAuthStore';
-import { getUserGroups } from '../groups/groupsRepository';
+import { groupsRepository } from '../groups/repository';
 import type { Group } from '../../types/group';
 import { CreateListDialog } from '../groups/CreateListDialog';
 import { useAppBar } from '../../shared/hooks/useAppBar';
 import { useMenuState } from '../groups/hooks/useMenuState';
+// --- ADD THIS IMPORT ---
+import { useComponentPreloader } from '../../shared/hooks/useComponentPreloader';
+
+// --- DEFINE THE LOADER FUNCTION ---
+const preloadEmojiPicker = () => import('emoji-picker-react');
 
 export const DashboardScreen: FC = () => {
   const navigate = useNavigate();
@@ -50,7 +57,11 @@ export const DashboardScreen: FC = () => {
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const settingsMenu = useMenuState();
 
-  // Configure the global AppBar for this screen
+  // --- THIS IS THE FIX ---
+  // Call the preloader hook. This will trigger the download of the emoji
+  // picker's code in the background after the dashboard has loaded.
+  useComponentPreloader([preloadEmojiPicker]);
+
   useAppBar({
     title: 'Dashboard',
     actions: (
@@ -64,7 +75,7 @@ export const DashboardScreen: FC = () => {
     if (!user?.uid) return;
 
     setIsLoading(true);
-    const unsubscribe = getUserGroups(user.uid, (updatedGroups) => {
+    const unsubscribe = groupsRepository.getUserGroups(user.uid, (updatedGroups) => {
       setGroups(updatedGroups);
       setIsLoading(false);
     });

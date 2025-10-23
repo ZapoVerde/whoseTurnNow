@@ -1,209 +1,139 @@
 /**
- * @file packages/whoseturnnow/src/features/groups/hooks/useGroupDetail.spec.ts
- * @stamp {"ts":"2025-10-21T19:00:00Z"}
- * @test-target packages/whoseturnnow/src/features/groups/hooks/useGroupDetail.ts
- *
+ * @file packages/whoseturnnow/src/features/groups/hooks/useGroupDetail.ts
+ * @stamp {"ts":"2025-10-23T10:35:00Z"}
+ * @architectural-role Orchestrator
  * @description
- * Unit tests for the `useGroupDetail` hook. This suite verifies all derived
- * state logic (e.g., permissions, undoable actions) and ensures that action
- * handlers correctly invoke their corresponding repository functions.
- *
- * @criticality
- * Critical (Reason: Core Business Logic Orchestration, High Fan-Out)
- *
- * @testing-layer Unit
- *
+ * The primary "Conductor" hook for the Group Detail feature. It composes all
+ * necessary data, state, and actions from various sources (stores and specialized
+ * satellite hooks) into a single, comprehensive view model for the UI component.
+ * @core-principles
+ * 1. IS the single composition root for the feature's logic.
+ * 2. ORCHESTRATES the view model by composing data from stores with logic from satellite hooks.
+ * 3. DELEGATES all business logic calculations to the `useGroupDerivedState` hook.
+ * 4. DELEGATES all action handling and I/O to the `useGroupActions` hook.
+ * 5. MUST NOT contain its own business logic or direct I/O calls.
+ * @api-declaration
+ *   - default: The `useGroupDetail` hook function.
+ *   - returns: A comprehensive view model object containing all data, derived
+ *     state, and actions required by the `GroupDetailScreen` component.
  * @contract
  *   assertions:
- *     purity: read-only # This test file asserts on the hook's output and mock function calls.
- *     state_ownership: none
- *     external_io: none # Mocks MUST prevent any actual I/O.
+ *     purity: mutates # This hook uses useEffect to orchestrate data loading.
+ *     state_ownership: none # It reads from global stores but owns no global state slices.
+ *     external_io: none # It delegates all I/O to other hooks and does not import from Firebase directly.
  */
 
-import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Mock } from 'vitest';
-
-// --- Mocks ---
-vi.mock('react-router-dom', () => ({
-  useNavigate: vi.fn(),
-}));
-vi.mock('../useGroupStore');
-vi.mock('../../auth/useAuthStore');
-vi.mock('../groupsRepository');
-
-// --- Imports ---
-import { useGroupDetail } from './useGroupDetail';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { useGroupStore } from '../useGroupStore';
 import { useAuthStore } from '../../auth/useAuthStore';
-import * as groupsRepository from '../groupsRepository';
-import type { AppUser } from '../../auth/useAuthStore';
-import type { Group, TurnCompletedLog } from '../../../types/group';
+import { useMenuState } from './useMenuState';
+import { useDialogState } from './useDialogState';
+import { useGroupDerivedState } from './useGroupDerivedState';
+import { useGroupActions } from './useGroupActions';
+import type { TurnParticipant } from '../../../types/group';
 
-// --- Test Setup ---
-const mockUseGroupStore = useGroupStore as unknown as Mock;
-const mockUseAuthStore = useAuthStore as unknown as Mock;
-const mockUndoTurnTransaction = vi.mocked(groupsRepository.undoTurnTransaction);
+export function useGroupDetail(groupId: string | undefined) {
+  // 1. Get raw data from global stores
+  const user = useAuthStore((state) => state.user);
+  const { group, turnLog, isLoading, loadGroupAndLog, cleanup } = useGroupStore();
 
-// --- Mock Data ---
-const mockAdminUser: AppUser = { uid: 'user-admin', displayName: 'Admin', isAnonymous: false };
-const mockMemberUser: AppUser = { uid: 'user-member', displayName: 'Member', isAnonymous: false };
-const mockOtherUser: AppUser = { uid: 'user-other', displayName: 'Other', isAnonymous: false };
+  // 2. Delegate business logic to the "Brain" hook
+  const derivedState = useGroupDerivedState(group, user, turnLog);
 
-const mockBaseGroup: Group = {
-  gid: 'group-1',
-  name: 'Test Group',
-  icon: '🧪',
-  ownerUid: 'owner',
-  participants: [
-    { id: 'p-admin', uid: 'user-admin', role: 'admin', turnCount: 5, nickname: 'Admin' },
-    { id: 'p-member', uid: 'user-member', role: 'member', turnCount: 3, nickname: 'Member' },
-  ],
-  turnOrder: ['p-member', 'p-admin'], // Member's turn
-  participantUids: ['user-admin', 'user-member'],
-};
+  // 3. Delegate action handlers to the "Hands" hook
+  const actions = useGroupActions({ groupId, user, ...derivedState });
 
-describe('useGroupDetail', () => {
-  // Helper to set up the mock stores for a given test scenario
-  const setupMocks = (
-    user: AppUser | null,
-    group: Group | null,
-    turnLog: (TurnCompletedLog & { id: string })[] = [],
+  // 4. Manage primitive UI state
+  const groupMenu = useMenuState();
+  const participantMenu = useMenuState();
+  const deleteDialog = useDialogState(actions.handleConfirmDelete);
+  const resetDialog = useDialogState(actions.handleConfirmReset);
+  const undoDialog = useDialogState(actions.handleConfirmUndo);
+
+  const [selectedParticipant, setSelectedParticipant] =
+    useState<TurnParticipant | null>(null);
+
+  // 5. Handle side effects (data loading)
+  useEffect(() => {
+    if (groupId) {
+      loadGroupAndLog(groupId);
+    }
+    return () => cleanup();
+  }, [groupId, loadGroupAndLog, cleanup]);
+
+  // 6. Create composite handlers that combine UI state logic with actions
+  const handleOpenParticipantMenu = (
+    event: MouseEvent<HTMLElement>,
+    participant: TurnParticipant,
   ) => {
-    mockUseAuthStore.mockReturnValue(user);
-    mockUseGroupStore.mockReturnValue({
-      group,
-      turnLog,
-      isLoading: false,
-      loadGroupAndLog: vi.fn(),
-      cleanup: vi.fn(),
-    });
+    setSelectedParticipant(participant);
+    participantMenu.handleOpen(event);
   };
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+  const handleCloseParticipantMenu = () => {
+    participantMenu.handleClose();
+    setTimeout(() => setSelectedParticipant(null), 150);
+  };
 
-  it('should call loadGroupAndLog on mount and cleanup on unmount', () => {
-    setupMocks(mockAdminUser, mockBaseGroup);
-    const { unmount } = renderHook(() => useGroupDetail('group-1'));
+  const handleRoleChange = (newRole: 'admin' | 'member') => {
+    if (selectedParticipant) {
+      actions.handleRoleChange(selectedParticipant.id, newRole);
+    }
+    handleCloseParticipantMenu();
+  };
 
-    expect(mockUseGroupStore().loadGroupAndLog).toHaveBeenCalledWith('group-1');
-    unmount();
-    expect(mockUseGroupStore().cleanup).toHaveBeenCalledTimes(1);
-  });
+  const handleRemoveParticipant = () => {
+    if (selectedParticipant) {
+      actions.handleRemoveParticipant(selectedParticipant.id);
+    }
+    handleCloseParticipantMenu();
+  };
 
-  describe('Derived State Calculation', () => {
-    it('should correctly identify when the current user is an admin', () => {
-      setupMocks(mockAdminUser, mockBaseGroup);
-      const { result } = renderHook(() => useGroupDetail('group-1'));
-      expect(result.current.isAdmin).toBe(true);
-    });
+  const handleCopyClaimLink = () => {
+    if (selectedParticipant) {
+      actions.handleCopyClaimLink(selectedParticipant.id);
+    }
+    handleCloseParticipantMenu();
+  };
 
-    it('should correctly identify when the current user is not an admin', () => {
-      setupMocks(mockMemberUser, mockBaseGroup);
-      const { result } = renderHook(() => useGroupDetail('group-1'));
-      expect(result.current.isAdmin).toBe(false);
-    });
+  // 7. Assemble and return the final, clean view model for the component
+  return {
+    // Raw Data
+    group,
+    turnLog,
+    isLoading,
+    user,
 
-    it('should correctly identify when it is the current user\'s turn', () => {
-      setupMocks(mockMemberUser, mockBaseGroup); // It's the member's turn in mock data
-      const { result } = renderHook(() => useGroupDetail('group-1'));
-      expect(result.current.isUserTurn).toBe(true);
-    });
+    // Derived State (from the "Brain")
+    ...derivedState,
 
-    it('should correctly identify when it is NOT the current user\'s turn', () => {
-      setupMocks(mockAdminUser, mockBaseGroup); // It's the member's turn
-      const { result } = renderHook(() => useGroupDetail('group-1'));
-      expect(result.current.isUserTurn).toBe(false);
-    });
-  });
+    // Actions & Action-related State (from the "Hands")
+    isSubmitting: actions.isSubmitting,
+    feedback: actions.feedback,
+    addParticipantForm: {
+      name: actions.newParticipantName,
+      setName: actions.setNewParticipantName,
+      handleSubmit: actions.handleAddParticipant,
+    },
 
-  describe('undoableAction Logic', () => {
-    const mockLogEntry: TurnCompletedLog & { id: string } = {
-      id: 'log-1',
-      type: 'TURN_COMPLETED',
-      participantId: 'p-member', // member's turn was completed
-      actorUid: 'user-member',   // member was the actor
-      isUndone: false,
-      completedAt: {} as any,
-      participantName: 'Member',
-      actorName: 'Member',
-      // NEW: This field is now required to match the updated type.
-      _participantUids: ['user-admin', 'user-member'],
-    };
+    // Composed UI State
+    groupMenu,
+    participantMenu: {
+      ...participantMenu,
+      selectedParticipant,
+      handleOpen: handleOpenParticipantMenu,
+      handleClose: handleCloseParticipantMenu,
+    },
+    resetDialog,
+    deleteDialog,
+    undoDialog,
 
-    it('should return null if there are no completed, non-undone logs', () => {
-      // The log is marked as undone, so no action should be available.
-      setupMocks(mockAdminUser, mockBaseGroup, [{ ...mockLogEntry, isUndone: true }]);
-      const { result } = renderHook(() => useGroupDetail('group-1'));
-      expect(result.current.undoableAction).toBeNull();
-    });
-
-    it('should identify an action as undoable if the user is an admin', () => {
-      // The current user is an admin, so they can undo the action.
-      setupMocks(mockAdminUser, mockBaseGroup, [mockLogEntry]);
-      const { result } = renderHook(() => useGroupDetail('group-1'));
-      expect(result.current.undoableAction).toEqual(mockLogEntry);
-    });
-
-    it('should identify an action as undoable if the user was the actor', () => {
-      // The current user was the actor who performed the action.
-      setupMocks(mockMemberUser, mockBaseGroup, [mockLogEntry]);
-      const { result } = renderHook(() => useGroupDetail('group-1'));
-      expect(result.current.undoableAction).toEqual(mockLogEntry);
-    });
-
-    it('should identify an action as undoable if the user was the subject of the turn', () => {
-      // Scenario: Admin completes a turn FOR a member. The member (subject) should be able to undo.
-      const logByAdmin: TurnCompletedLog & { id: string } = {
-        ...mockLogEntry,
-        actorUid: 'user-admin', // Admin was the actor
-      };
-      // The current user is the member, who was the subject of the turn.
-      setupMocks(mockMemberUser, mockBaseGroup, [logByAdmin]);
-      const { result } = renderHook(() => useGroupDetail('group-1'));
-      expect(result.current.undoableAction).toEqual(logByAdmin);
-    });
-
-    it('should return null if a non-involved user tries to undo', () => {
-      // A third-party user who is not an admin, actor, or subject should not be able to undo.
-      setupMocks(mockOtherUser, mockBaseGroup, [mockLogEntry]);
-      const { result } = renderHook(() => useGroupDetail('group-1'));
-      expect(result.current.undoableAction).toBeNull();
-    });
-  });
-
-  describe('Action Handlers', () => {
-    it('should call undoTurnTransaction when handleConfirm is triggered from undoDialog', async () => {
-        // ARRANGE
-        const mockLogEntry: TurnCompletedLog & { id: string } = {
-            id: 'log-1',
-            type: 'TURN_COMPLETED',
-            participantId: 'p-member',
-            actorUid: 'user-member',
-            isUndone: false,
-            completedAt: {} as any,
-            participantName: 'Member',
-            actorName: 'Member',
-            // NEW: This field is now required to match the updated type.
-            _participantUids: ['user-admin', 'user-member'],
-        };
-        
-        setupMocks(mockAdminUser, mockBaseGroup, [mockLogEntry]);
-        const { result } = renderHook(() => useGroupDetail('group-1'));
-
-        // ASSERT PRE-CONDITION: Ensure the hook has identified an action to undo
-        expect(result.current.undoableAction).not.toBeNull();
-
-        // ACT: Call the confirm handler from the dialog state object
-        await act(async () => {
-            result.current.undoDialog.handleConfirm();
-        });
-
-        // ASSERT
-        expect(mockUndoTurnTransaction).toHaveBeenCalledTimes(1);
-        expect(mockUndoTurnTransaction).toHaveBeenCalledWith('group-1', mockAdminUser, mockLogEntry);
-    });
-  });
-});
+    // Actions that need to be composed with local UI state
+    actions: {
+      ...actions,
+      handleRoleChange,
+      handleRemoveParticipant,
+      handleCopyClaimLink,
+    },
+  };
+}
