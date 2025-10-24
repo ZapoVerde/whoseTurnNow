@@ -1,8 +1,4 @@
-Of course. We have reached the final stage of the design process. The application is fully specified.
 
-We can break down the entire design into **6 distinct topics**. Each one is a self-contained document that describes a core aspect of the application, from the foundational data to the user-facing interactions.
-
-Here is the complete breakdown.
 
 ---
 

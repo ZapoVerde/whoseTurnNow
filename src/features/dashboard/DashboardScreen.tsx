@@ -3,25 +3,15 @@
  * @stamp {"ts":"2025-10-23T11:25:00Z"}
  * @architectural-role UI Component, Orchestrator
  * @description
- * Renders the user's main dashboard. It fetches and displays the user's lists
- * and provides the primary UI for creating new lists and navigating to settings,
- * while adhering to all accessibility and theming standards.
+ * Renders the user's main dashboard. It is now "connection-aware," subscribing
+ * to the `useAppStatusStore` to re-initialize its data listeners when the app
+ * recovers from a degraded state.
  * @core-principles
  * 1. IS the primary UI for displaying a user's collection of lists.
- * 2. MUST declaratively configure the global AppBar for its context.
+ * 2. MUST re-establish its data subscription when the connection mode transitions to 'live'.
  * 3. MUST provide accessible labels for all interactive controls.
  * @api-declaration
  *   - default: The DashboardScreen React functional component.
- *   - Props: None. This component is a route-level entry point.
- *   - Global State: Subscribes to `useAuthStore` to get the current user's UID for
- *     data fetching. It also dispatches configuration to the `useAppBarStore` to
- *     set the screen's title and actions.
- *   - Side Effects:
- *     - Fetches the user's groups by establishing a real-time listener via the
- *       `groupsRepository` on mount.
- *     - Triggers browser navigation to the `/group/:groupId` or `/settings`
- *       routes upon user interaction.
- *     - Manages the visibility of the `CreateListDialog` component.
  * @contract
  *   assertions:
  *     purity: mutates
@@ -52,6 +42,7 @@ import type { Group } from '../../types/group';
 import { CreateListDialog } from '../groups/CreateListDialog';
 import { useAppBar } from '../../shared/hooks/useAppBar';
 import { useMenuState } from '../groups/hooks/useMenuState';
+import { useAppStatusStore } from '../../shared/store/useAppStatusStore';
 
 const getNextParticipantName = (group: Group): string => {
   if (!group.turnOrder || group.turnOrder.length === 0) {
@@ -67,6 +58,7 @@ const getNextParticipantName = (group: Group): string => {
 export const DashboardScreen: FC = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const connectionMode = useAppStatusStore((state) => state.connectionMode);
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
@@ -78,10 +70,9 @@ export const DashboardScreen: FC = () => {
         <Typography variant="h6" component="div">
           Whose Turn Now
         </Typography>
-        {/* The color is changed from 'error.main' to 'primary.main' for correct semantic theming. */}
         <Typography variant="h6" sx={{ color: 'primary.main' }}>
           ❓
-        </Typography>
+        </Typography>        
       </Stack>
     ),
     actions: (
@@ -91,17 +82,34 @@ export const DashboardScreen: FC = () => {
     ),
   });
 
+  // --- THIS IS THE FIX ---
+  // This effect now depends on the `connectionMode`. If the mode changes from
+  // 'degraded' to 'live', this effect will re-run, cleaning up the old (and likely dead)
+  // listener and establishing a new one.
   useEffect(() => {
-    if (!user?.uid) return;
+    // Do nothing if we don't have a user or if the connection is degraded.
+    if (!user?.uid || connectionMode === 'degraded') {
+      // --- DEBUG LOG ---
+      console.log('[DashboardScreen] Skipping subscription.', { hasUser: !!user?.uid, connectionMode });
+      return;
+    }
 
     setIsLoading(true);
+    // --- DEBUG LOG ---
+    console.log('[DashboardScreen] Connection is LIVE. Establishing group subscription...');
     const unsubscribe = groupsRepository.getUserGroups(user.uid, (updatedGroups) => {
       setGroups(updatedGroups);
       setIsLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [user?.uid]);
+    // This cleanup function will be called when the component unmounts, or
+    // before the effect runs again (e.g., on user or connectionMode change).
+    return () => {
+      console.log('[DashboardScreen] Cleaning up group subscription.');
+      unsubscribe();
+    };
+  }, [user?.uid, connectionMode]);
+  // --- END FIX ---
 
   return (
     <>

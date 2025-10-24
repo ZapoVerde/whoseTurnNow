@@ -1,7 +1,3 @@
-Of course. Here is a comprehensive document that explains the security philosophy of the application, incorporating the two tables we've discussed to provide a complete overview of the data access rules.
-
----
-
 # **"Whose Turn Now" Security & Permissions Guide**
 
 This document provides a definitive overview of the data access and security model for the "Whose Turn Now" application. It explains the core philosophy of the security rules and details who can perform what actions under which conditions.
@@ -24,17 +20,19 @@ This table breaks down the specific rules for each type of data in the Firestore
 | :--- | :--- | :--- |
 | **User Profile** (`/users/{userId}`) |
 | `read`, `write` | The user themselves | The user's authenticated `uid` must exactly match the `userId` of the document they are trying to access. |
+| `delete` | The user themselves | This action is initiated from the client. The client performs a **gatekeeper check** first: it will block the deletion request if the user is the last remaining admin of any group to prevent orphaning. |
 | **Group Document** (`/groups/{groupId}`) |
-| `read` | Any member of the group | The user must be authenticated, and their `uid` must be in the group's `participantUids` array. |
+| `get` (read a single document) | Any member of the group | The user must be authenticated, and their `uid` must be in the group's `participantUids` array. |
+| `list` (query the collection) | Any authenticated user | The rule allows any logged-in user to query the collection. Security is enforced by the **client-side code**, which *must* include a `where('participantUids', 'array-contains', userId)` clause. This ensures the query only ever returns groups the user is actually a member of. |
 | `create` | Any authenticated user | The user must be logged in, and the new group document they are creating must be perfectly formed: they are listed as the `ownerUid` and are the sole initial participant with the `admin` role. |
 | `update` | An existing **admin** of the group | The user is an admin, and the change does not result in the group having zero admins (the "Last Admin Rule"). |
+| `update` | Any **member** of the group | This is for taking or skipping a turn. The write is only allowed if it **only** modifies the fields related to the participant roster (`participants`, `turnOrder`, `participantUids`, `adminUids`), preventing a member from changing the group's name or icon. |
 | `update` | An authenticated user **joining** the group | The user is logged in, is not currently a member, and the update adds their `uid` to the `participantUids` array. |
 | `update` | A group member **leaving** the group | The user is currently a member, the update removes their `uid` from the `participantUids` array, and this action does not violate the "Last Admin Rule". |
 | `delete` | An existing **admin** of the group | The user's role in the group's `participants` array must be `admin`. |
 | **Turn Log** (`/groups/{groupId}/turnLog/{logId}`) |
-| `read` | Any member of the group | The user must be authenticated, and their `uid` must be in the parent group's `participantUids` array. |
-| `create` | Any member of the group | Any member can create a new log entry, which occurs when an action like completing a turn or resetting counts is performed. |
-| `update` | The **actor**, the **subject**, or an **admin** | This action is only for the "Undo" feature. The update is only allowed if it sets the `isUndone` flag to `true`, and the user is either: 1) The admin of the group, 2) The user who performed the original action, or 3) The user whose turn was affected by the original action. |
+| `read`, `create` | Any member of the group | The user must be authenticated, and their `uid` must be in the parent group's `participantUids` array. |
+| `update` | Any **admin** of the group | This action is only for the "Undo" feature. The update is only allowed if it sets the `isUndone` flag to `true`, and the user initiating the action is an admin of the parent group. |
 | `delete` | **No one** | Log entries are immutable and can never be deleted through the client application. |
 
 ## **Part III: Anonymous vs. Registered Users**

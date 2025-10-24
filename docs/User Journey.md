@@ -1,8 +1,15 @@
-You are correct. A single, comprehensive **User Journey Specification** is the best final output. Given the complexity, breaking it down iteratively is the safest approach to ensure all necessary detail is captured for every flow.
 
-We will focus on creating the **Skeleton** of the final document, outlining the main sections (the flows we've defined) and the required level of detail for each one.
 
-This structure will become the definitive **`docs/user_journeys.md`** (or a similarly named file).
+---
+
+# **User Journey Specification: AiAnvil V1 (Whose Turn Now)**
+
+## **Document Role**
+This document details the complete, end-to-end user experience for the V1 application. It describes **what the user can do**, **what they see**, and **how the system should react**, independent of the underlying database or component structure.
+
+Of course. Now that the `User Journey.md` document has been fully updated with all new features and corrections, a revised skeleton outline is necessary to reflect its new, more comprehensive structure.
+
+Here is the updated skeleton outline.
 
 ---
 
@@ -14,69 +21,68 @@ This document details the complete, end-to-end user experience for the V1 applic
 ## **Skeleton Outline**
 
 ### **Section 1: Core Concepts & Terminology**
-*   **1.1 User Identity:** Defining **Global Name** vs. **Local Nickname** and the persistence status (Anonymous vs. Registered).
-*   **1.2 List Structure:** Defining **List** (user term) vs. **Group** (data term), and the concept of **Participants** (Slots) vs. **Users** (Accounts).
-*   **1.3 Governance:** Defining the **Council of Admins** role structure and the **Last Admin Rule**.
+*   **1.1 User Identity:** Defining **Global Name** vs. **Local Nickname**.
+*   **1.2 List Structure:** Defining **List** vs. **Group**, and **Participants** vs. **Users**.
+*   **1.3 Governance:** Defining the **Council of Admins** and the **Last Admin Rule**.
 
 ### **Section 2: Flow 1 - Initial Entry & Authentication**
 *   **Goal:** Securely establish or retrieve the user's identity.
 *   **Sub-Flows:**
-    *   2.1 Anonymous Session Start (Instant Access).
-    *   2.2 Permanent Account Creation (Sign Up).
-    *   2.3 Account Upgrade (Linking Anonymous Session to Permanent Credentials).
+    *   2.1 Anonymous Session Start.
+    *   2.2 Permanent Account Creation.
+    *   2.3 Account Upgrade.
     *   2.4 Session Termination (Log Out).
-*   **Key Detail Required:** The "First-Time Handshake" for capturing the initial Global Name.
+    *   2.5 The "First-Time Handshake."
 
 ### **Section 3: Flow 2 - List Management (Creation & Dashboard)**
-*   **Goal:** Allow authenticated users to manage their collection of lists.
+*   **Goal:** Allow users to manage their collection of lists.
 *   **Sub-Flows:**
-    *   3.1 Dashboard View: Displaying all accessible lists.
-    *   3.2 List Creation: Providing Name and Emoji icon.
-    *   3.3 List Navigation: Linking from the Dashboard to the Group Detail Page.
-*   **Key Detail Required:** The behavior for an anonymous user seeing the "Save Progress" prompt.
+    *   3.1 Dashboard View.
+    *   3.2 List Creation.
+    *   3.3 Navigation to the Group Detail Page (Primary Interactive View).
 
 ### **Section 4: Flow 3 - The Core Turn Cycle (Interaction)**
-*   **Goal:** Enable the primary function of the app: advancing the turn queue.
+*   **Goal:** Enable the primary function of advancing the turn queue.
 *   **Sub-Flows:**
-    *   4.1 Initial Queue Render: How the participant at `turnOrder[0]` is identified.
-    *   4.2 Smart Action Button Logic: Detailing the text/behavior for **"Complete My Turn"** vs. **"Take My Turn."**
-    *   4.3 Turn Advancement Transaction: The precise effect on the `turnOrder` (move to end) and the `turnCount`.
-    *   4.4 Turn History Logging: Detailing that a new log entry is created for every advancement.
-*   **Key Detail Required:** The precise rule for moving the active participant to the bottom of the queue.
+    *   4.1 Initial Queue Render.
+    *   4.2 Smart Action Button Logic ("Complete My Turn" vs. "Take My Turn").
+    *   4.3 Turn Advancement Transaction.
+    *   4.4 Turn History Display.
+    *   **4.5 The Skip Turn Action.**
 
 ### **Section 5: Flow 4 - Group Administration & Governance**
 *   **Goal:** Enable collaborative management of the participant roster and list settings.
 *   **Sub-Flows:**
-    *   5.1 Role Management: Promoting/Demoting participants (Member $\leftrightarrow$ Admin).
-    *   5.2 Participant Management: Removing a participant.
-    *   5.3 List Setting Modification: Changing the list's Name and Icon.
-    *   5.4 State Reset: The high-friction "Reset All Turn Counts" action (must be logged).
-    *   5.5 Exit: Logic for leaving a group, strictly blocked if the user is the **Last Admin**.
-*   **Key Detail Required:** The exact UI element used to trigger participant-level vs. group-level actions.
+    *   5.1 Role-Based UI Gating.
+    *   5.2 Group-Level Management (Kebab Menu Actions).
+    *   5.3 Participant-Level Management (Contextual Menu).
+    *   5.4 "Last Admin" Rule Enforcement.
+    *   5.5 Participant Self-Action.
+    *   **5.6 Admin-Initiated Turn Completion.**
 
 ### **Section 6: Flow 5 - Collaboration & Invitation**
-*   **Goal:** Enable users to invite new members or have existing members claim placeholder slots.
+*   **Goal:** Enable users to invite new members to a list.
 *   **Sub-Flows:**
-    *   6.1 Invitation Link Generation (Admin action on Group Detail Page).
-        *   6.1.1 Generic Link Generation.
-        *   6.1.2 Targeted "Hand-off" Link Generation (for placeholders).
-    *   6.2 Invitee Experience: The dedicated landing page that parses the URL context.
-    *   6.3 Joining Logic: The outcome when a user joins via a generic link (new slot created) vs. a targeted link (placeholder `uid` is claimed).
-*   **Key Detail Required:** The distinction between the two link types and the resulting change to the `participants` array.
+    *   6.1 Invitation Link Generation (Generic vs. Targeted).
+    *   6.2 The Invitee Experience (Landing Page).
+    *   6.3 Joining Logic (Post-Authentication).
+    *   6.4 Security & Validation.
 
 ### **Section 7: Flow 6 - The Undo Stack (Forgiveness)**
 *   **Goal:** Provide a safety net for reversing recent mistakes.
 *   **Sub-Flows:**
-    *   7.1 Undo Button State: Logic for when the button is enabled/disabled (based on LIFO stack of 3).
-    *   7.2 Permission Check: Reversing an action is only allowed by the Actor, Subject, or any Admin.
-    *   7.3 Reversal Transaction: The atomic steps taken to revert state (move to front of queue, decrement count) and log the `TURN_UNDONE` action while marking the original log entry as visually reversed.
-*   **Key Detail Required:** The strict LIFO order of reversal and the creation of the `TURN_UNDONE` log entry.
+    *   7.1 UI Implementation & State Visibility.
+    *   7.2 Undo Action Confirmation.
+    *   7.3 The Transparent Reversal Transaction.
 
----
-
-Great. We will now proceed to flesh out the first section of the definitive **User Journey Specification**.
-
----
+### **Section 8: Flow 7 - Global Settings & Theming**
+*   **Goal:** Allow users to manage their global account and customize the UI.
+*   **Sub-Flows:**
+    *   8.1 Navigation & Access.
+    *   8.2 Profile Management (Global Name Change).
+    *   8.3 Theme Settings (Mode, Density, Complexity).
+    *   8.4 About Section (GitHub Link).
+    *   8.5 Danger Zone (Account Deletion).
 
 ## **Section 1: Core Concepts & Terminology**
 
@@ -88,8 +94,8 @@ The system recognizes two states for a user's identity, which dictates where the
 
 | Term | Definition | Storage Location | Persistence |
 | :--- | :--- | :--- | :--- |
-| **Global Name** | The user's default, preferred name across all lists and the application settings. | `/users/{uid}` document | Permanent (even for anonymous users after first login/handoff). |
-| **Local Nickname** | An optional, group-specific override for a participant's name. | `TurnParticipant.nickname` in the `/groups/{gid}` document. | Local to the specific Group/List. |
+| **Global Name** | The user's default, preferred name across all lists and the application settings. This is set on the global Settings page. | `/users/{uid}` document | Permanent (even for anonymous users after first login/handoff). |
+| **Local Nickname** | An optional, group-specific override for a participant's name. This can be set by a user for themselves, or by an admin for any participant, via the on-click contextual menu in the participant list. | `TurnParticipant.nickname` in the `/groups/{gid}` document. | Local to the specific Group/List. |
 | **Anonymous User** | A user signed in via an ephemeral, temporary Auth token. They have a `Global Name` but no associated email/password. | `/users/{uid}` document (with `email: null`). | Data is preserved upon upgrade, but the session is not persistent without an upgrade. |
 | **Registered User**| A user signed in with permanent credentials (Email/Password or Social Provider). | `/users/{uid}` document (with `email` present). | Persistent. |
 
@@ -111,11 +117,6 @@ The application enforces a democratic management structure.
 *   **Council of Admins:** All admins have **equal power**. There is no singular "owner" role that supersedes the admin consensus.
 *   **The "Last Admin" Rule:** The system *must* prevent any action that would result in a list having zero administrators (i.e., preventing the last admin from leaving or demoting themselves).
 
----
-
-We will now flesh out the details for **Section 2: Flow 1 - Initial Entry & Authentication**, describing how users establish their identity.
-
----
 
 ## **Section 2: Flow 1 - Initial Entry & Authentication**
 
@@ -163,6 +164,8 @@ This flow runs **immediately after successful authentication** (for any new acco
 
 ---
 
+
+
 ## **Section 3: Flow 2 - List Creation & Dashboard Viewing**
 
 **Goal:** Allow authenticated users to view their existing lists and initiate the creation of a new list, fulfilling the foundational organizing principle of the application.
@@ -172,7 +175,7 @@ This flow runs **immediately after successful authentication** (for any new acco
 This view is the landing page for authenticated users (anonymous or permanent).
 
 1.  **Initial State:** The user lands on the Dashboard.
-2.  **System Action (Data Fetch):** The application immediately queries Firestore for all `Group` documents where the user's authenticated `uid` is present in the **`participantUids`** array (as defined in the Architecture Document).
+2.  **System Action (Data Fetch):** The application immediately queries Firestore for all `Group` documents where the user's authenticated `uid` is present in the **`participantUids`** array.
 3.  **System State (Real-Time):** The list of groups updates in real-time as the user joins or is invited to new lists.
 4.  **User View:** The list displays each accessible group using its **emoji icon** and **list name**.
 5.  **Anonymous User Condition:** If the user is anonymous, a persistent, non-intrusive banner is displayed at the top of the screen stating: *"Save your progress! Create a permanent account to keep your lists forever."*
@@ -196,14 +199,12 @@ This flow is initiated from the Dashboard via a prominent **Create New List** ac
     *   The creation of the first **Log Entry** (`COUNTS_RESET` or a special `GROUP_CREATED` event) in the `turnLog`.
 4.  **System Action (Navigation):** Upon successful write, the application programmatically redirects the user to the new list's detail page: `/group/{groupId}`.
 
-### **3.3 Group Detail Page (Read-Only Skeleton)**
+### **3.3 Group Detail Page (Primary Interactive View)**
 
-This view is the initial destination after creation or navigation from the Dashboard.
+This view is the main hub for all interactions with a specific list, reached after creation or by navigating from the Dashboard.
 
-1.  **System Action (Data Fetch):** The page establishes a real-time listener for the specific `Group` document and its `turnLog` sub-collection, based on the ID in the URL.
-2.  **User View:** The page displays the group's **icon and name** in the header, and a placeholder for the Participant List, which currently shows only the creator as the sole participant (next in line).
-
----
+1.  **System Action (Data Fetch):** The page establishes real-time listeners for the specific `Group` document and its `turnLog` sub-collection, based on the ID in the URL.
+2.  **User View:** The page displays the group's **icon and name** in the header and the full, interactive participant list. This is where all core actions, such as taking turns, skipping turns, and group management, are performed.
 
 ## **Section 4: Flow 3 - The Core Turn Cycle (Interaction)**
 
@@ -250,7 +251,17 @@ This operation **MUST** be executed as a single, atomic Firestore transaction to
     *   **Timestamp:** When the event occurred.
     *   **Actors:** Clearly indicating who performed the action.
 
----
+### **4.5 The Skip Turn Action**
+
+This flow provides a way for a user to voluntarily give up their turn.
+
+1.  **UI Implementation:** A new, secondary **"Skip Turn" button** appears in the main action bar, but it is **only visible if it is the user's turn**.
+2.  **User Action:** The user clicks the "Skip Turn" button and confirms the action via a dialog.
+3.  **System Action (Atomic Write - Skip Turn):** A single transaction is executed:
+    *   The user's participant ID is moved from the **front (`[0]`) to the end** of the `turnOrder` array.
+    *   Crucially, their **`turnCount` is NOT incremented**.
+    *   A new, distinct `TURN_SKIPPED` log entry is created in the `turnLog`.
+4.  **Result:** The user is moved to the bottom of the queue, and the action is transparently logged in the Turn History.
 
 ## **Section 5: Flow 4 - Group Management & Administration**
 
@@ -300,7 +311,17 @@ This is a critical safety net implemented in **both the client-side UI logic and
 1.  **User Action:** Any participant clicks on their own row in the queue.
 2.  **Result:** A menu appears allowing them to change their **Local Nickname** for this list only. This updates the `nickname` field in their `TurnParticipant` object.
 
----
+### **5.6 Admin-Initiated Turn Completion**
+
+This flow allows an admin to manage the turn queue on behalf of others.
+
+1.  **UI Implementation:** When an `admin` clicks on a participant who is *not* themselves, a new **"Complete Turn for [Name]"** option appears in the contextual menu.
+2.  **User Action:** The admin selects this option.
+3.  **System Action (Atomic Write - Delegated Turn Completion):** The system executes the same **Turn Advancement Transaction** as a normal turn, but with a crucial difference in the parameters:
+    *   The `participantToMove` is the participant who was clicked on.
+    *   The `actor` is the admin who initiated the action.
+4.  **Result:** The selected participant is moved to the bottom of the queue and their turn count is incremented.
+5.  **Logging:** A `TURN_COMPLETED` log entry is created, but the `actorName` (the admin) and `participantName` (the subject) will be different, resulting in a transparent audit trail (e.g., *"Bob's turn was completed by Sue."*).
 
 ## **Section 6: Flow 5 - Participant Invitations & The "Hand-off" Flow**
 
@@ -403,3 +424,51 @@ This entire sequence **MUST** execute as a single, atomic Firestore transaction 
 2.  The "Undo" button state re-evaluates based on the new, shorter history stack.
 
 ---
+
+## **Section 8: Flow 7 - Global Settings & Theming**
+
+**Goal:** Provide users with a centralized location to manage their global account preferences and customize the application's appearance.
+
+### **8.1 Navigation & Access**
+
+1.  **User Action:** A logged-in user is on the **Dashboard Screen**.
+2.  **User Action:** The user clicks the **kebab menu ("...")** in the main `AppBar`.
+3.  **User Action:** The user selects the **"Settings"** option from the menu.
+4.  **System Action:** The application navigates the user to the dedicated `/settings` page.
+
+### **8.2 Profile Management**
+
+This section of the settings page allows a user to manage their application-wide identity.
+
+1.  **User View:** The user sees a form field pre-populated with their current **Global Display Name**.
+2.  **User Action:** The user can edit this name and click a "Save Changes" button.
+3.  **System Action:** The `displayName` field on the user's `/users/{uid}` document is updated. The change is immediately reflected in the application's state and UI.
+
+### **8.3 Theme Settings**
+
+This section allows a user to customize their visual experience.
+
+1.  **User View:** The user sees a set of toggle buttons that display the current theme state.
+2.  **User Actions:**
+    *   Clicking the **"[Light/Dark] Mode"** button toggles the application's color scheme.
+    *   Clicking the **"[Comfortable/Compact] Density"** button toggles the spacing and size of UI elements.
+    *   Clicking the **"[Full/Simple] Complexity"** button toggles advanced visual styles like shadows and borders.
+3.  **System Action:** The user's preferences are saved to the client-side `useSettingsStore`, and the application's theme is instantly re-generated and applied.
+
+### **8.4 About Section**
+
+This section provides meta-information about the project.
+
+1.  **User View:** The user sees a button labeled **"View on GitHub"**.
+2.  **User Action:** Clicking the button opens the project's public GitHub repository in a new browser tab.
+
+### **8.5 Danger Zone (Account Deletion)**
+
+This section provides a high-friction flow for permanent account deletion.
+
+1.  **User View:** The user sees a "Danger Zone" section with a "Delete Account" button.
+2.  **User Action:** The user clicks the "Delete Account" button.
+3.  **System Action:** A confirmation dialog appears, explaining the permanent nature of the action and requiring the user to type the word "DELETE" to enable the final confirmation button.
+4.  **Gatekeeper Check:** Before proceeding, the system checks if the user is the **last remaining admin** of any group. If they are, the deletion is blocked, and an error message is displayed explaining why.
+5.  **User Action:** If not blocked, the user confirms the deletion.
+6.  **System Action:** The system deletes the user's authentication record and their `/users/{uid}` document, signs them out, and redirects them to the login screen.
