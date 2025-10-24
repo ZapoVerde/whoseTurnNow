@@ -37,6 +37,7 @@ import { deleteUser } from 'firebase/auth';
 import { db, auth } from '../../lib/firebase';
 import type { AppUser } from './useAuthStore';
 import type { Group } from '../../types/group';
+import { groupsRepository } from '../groups/repository';
 
 /**
  * Fetches a user profile document from Firestore based on their UID.
@@ -80,28 +81,23 @@ async function updateUserDisplayName(
  */
 async function findBlockingGroup(uid: string): Promise<string | null> {
   const groupsRef = collection(db, 'groups');
-  // Query for all groups the user is a member of.
   const q = query(groupsRef, where('participantUids', 'array-contains', uid));
   const userGroupsSnap = await getDocs(q);
 
-  // Loop through the results to check their admin status in each group.
   for (const doc of userGroupsSnap.docs) {
     const group = doc.data() as Group;
     const admins = group.participants.filter(p => p.role === 'admin');
-    // If there is only one admin and that admin's UID matches the user's...
     if (admins.length === 1 && admins[0].uid === uid) {
-      // ... we have found a blocking group. Return its name immediately.
       return group.name;
     }
   }
-
-  // If the loop completes, no blocking groups were found.
   return null;
 }
 
 /**
- * Orchestrates the complete deletion of the currently authenticated user's account,
- * including their Firestore profile and their authentication record.
+ * Orchestrates the complete deletion of the currently authenticated user's account.
+ * It performs a critical pre-flight check to prevent orphaning groups before
+ * proceeding with any destructive operations.
  */
 async function deleteUserAccount(): Promise<void> {
   const currentUser = auth.currentUser;
@@ -110,17 +106,34 @@ async function deleteUserAccount(): Promise<void> {
   }
   const { uid } = currentUser;
 
+  // Step 1: Perform the critical pre-flight "gatekeeper" check.
+  const blockingGroup = await findBlockingGroup(uid);
+  if (blockingGroup) {
+    // If a blocking group is found, fail the entire operation immediately.
+    throw new Error(`Cannot delete account. You are the last admin of "${blockingGroup}". Please promote another admin or delete the group first.`);
+  }
+
   try {
-    // First, delete the user's profile document from Firestore.
+    // Step 2: Proceed with cleanup only if the gatekeeper check passes.
+    const groupsRef = collection(db, 'groups');
+    const q = query(groupsRef, where('participantUids', 'array-contains', uid));
+    const userGroupsSnap = await getDocs(q);
+
+    const removalPromises = userGroupsSnap.docs.map(async (groupDoc) => {
+      const group = groupDoc.data() as Group;
+      const participantToRemove = group.participants.find(p => p.uid === uid);
+      if (participantToRemove) {
+        return groupsRepository.removeParticipant(group.gid, participantToRemove.id);
+      }
+    });
+    await Promise.all(removalPromises);
+
+    // Step 3: Delete the core profile and auth record.
     const userDocRef = doc(db, 'users', uid);
     await deleteDoc(userDocRef);
-
-    // Then, delete the user's authentication record.
     await deleteUser(currentUser);
   } catch (error) {
-    console.error('Error deleting user account:', error);
-    // Re-throw the error to be handled by the calling UI, which can
-    // potentially prompt for re-authentication if required.
+    console.error('Error during the final stages of account deletion:', error);
     throw error;
   }
 }

@@ -72,7 +72,10 @@ export const EmojiPickerPopover: React.FC<EmojiPickerPopoverProps> = ({
           </Box>
         }
       >
-        <LazyEmojiPicker onEmojiClick={handleEmojiClick} />
+        {/* By adding `lazyLoadEmojis`, the component will only fetch images for */}
+        {/* emojis as they are scrolled into view, preventing the massive burst */}
+        {/* of network requests that was causing the resource error. */}
+        <LazyEmojiPicker onEmojiClick={handleEmojiClick} lazyLoadEmojis />
       </Suspense>
     </Popover>
   );

@@ -26,7 +26,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
 export interface AppBarState {
-  title: string;
+  title: React.ReactNode;
   actions: React.ReactNode | null;
   showBackButton: boolean;
   setConfig: (config: Partial<AppBarState>) => void;
@@ -43,14 +43,10 @@ export const useAppBarStore = create<AppBarState>()(
   immer((set) => ({
     ...initialState,
 
-    // The store is "dumb." Its job is only to apply the state it is given,
-    // not to decide if an update is necessary. This logic is now the
-    // responsibility of the `useAppBar` hook.
     setConfig: (config) =>
       set((state) => {
         Object.assign(state, config);
       }),
-    // --- END FIX ---
     
     reset: () => set(initialState),
   })),

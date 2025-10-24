@@ -35,6 +35,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
+import Stack from '@mui/material/Stack';
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { useAuthStore } from '../auth/useAuthStore';
@@ -43,10 +44,8 @@ import type { Group } from '../../types/group';
 import { CreateListDialog } from '../groups/CreateListDialog';
 import { useAppBar } from '../../shared/hooks/useAppBar';
 import { useMenuState } from '../groups/hooks/useMenuState';
-// --- ADD THIS IMPORT ---
 import { useComponentPreloader } from '../../shared/hooks/useComponentPreloader';
 
-// --- DEFINE THE LOADER FUNCTION ---
 const preloadEmojiPicker = () => import('emoji-picker-react');
 
 export const DashboardScreen: FC = () => {
@@ -57,19 +56,29 @@ export const DashboardScreen: FC = () => {
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const settingsMenu = useMenuState();
 
-  // --- THIS IS THE FIX ---
-  // Call the preloader hook. This will trigger the download of the emoji
-  // picker's code in the background after the dashboard has loaded.
   useComponentPreloader([preloadEmojiPicker]);
 
+  // --- THIS IS THE FIX ---
+  // The static 'Dashboard' title is replaced with a Stack component that
+  // renders the red emoji and the application's name.
   useAppBar({
-    title: 'Dashboard',
+    title: (
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Typography variant="h6" sx={{ color: 'error.main' }}>
+          ❓
+        </Typography>
+        <Typography variant="h6" component="div">
+          Whose Turn Now
+        </Typography>
+      </Stack>
+    ),
     actions: (
       <IconButton color="inherit" aria-label="settings" onClick={settingsMenu.handleOpen}>
         <MoreVertIcon />
       </IconButton>
     ),
   });
+  // --- END FIX ---
 
   useEffect(() => {
     if (!user?.uid) return;

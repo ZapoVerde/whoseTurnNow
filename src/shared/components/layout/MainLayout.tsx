@@ -26,6 +26,7 @@ import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import Container from '@mui/material/Container';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useAppBarStore } from '../../store/useAppBarStore';
 
@@ -55,16 +56,23 @@ export const MainLayout: React.FC = () => {
         </Toolbar>
       </AppBar>
 
-      <Box
+      {/* --- THIS IS THE FIX --- */}
+      {/* The generic Box has been replaced with a Container. This component */}
+      {/* automatically centers its content and applies a `maxWidth` of 'md' (900px), */}
+      {/* preventing the layout from stretching too wide on large screens. */}
+      {/* It also handles responsive padding out of the box. */}
+      <Container
         component="main"
+        maxWidth="md"
         sx={{
           flexGrow: 1,
           overflowY: 'auto',
-          p: 2,
+          py: 2, // We apply vertical padding here.
         }}
       >
         <Outlet />
-      </Box>
+      </Container>
+      {/* --- END FIX --- */}
     </Box>
   );
 };
