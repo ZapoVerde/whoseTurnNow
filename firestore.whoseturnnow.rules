@@ -92,9 +92,14 @@ service cloud.firestore {
       // Sub-collection rules remain strict, as they should.
       match /turnLog/{logId} {
         allow read, create: if isMemberOfParentGroup(groupId);
-        allow update: if isAdmin(get(/databases/$(database)/documents/groups/$(groupId)).data)
+
+        // The rule checks for admin status using the denormalized `_adminUids`
+        // map stored on the log entry itself (`resource.data`).
+        // This removes the `get()` call and resolves the transactional race condition.
+        allow update: if (request.auth.uid in resource.data._adminUids)
                       && request.resource.data.isUndone == true
                       && resource.data.isUndone == false;
+
         allow delete: if false;
       }
     }

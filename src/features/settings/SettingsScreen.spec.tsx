@@ -19,7 +19,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import '@testing-library/jest-dom/vitest';
+
 
 // --- Mocks ---
 vi.mock('../auth/useAuthStore');
@@ -53,6 +53,7 @@ describe('SettingsScreen', () => {
       status: 'authenticated',
       setAuthenticated: vi.fn(),
       setUnauthenticated: vi.fn(),
+      setNewUser: vi.fn(),
       setStatus: vi.fn(),
     };
     mockUseAuthStore.mockImplementation((selector: (state: AuthState) => any) =>

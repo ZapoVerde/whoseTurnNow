@@ -91,6 +91,7 @@ export async function completeTurnTransaction(
       actorUid: actor.uid,
       actorName: actor.displayName || 'Unknown',
       _participantUids: groupData.participantUids,
+      _adminUids: groupData.adminUids,
     };
     transaction.set(newLogRef, newLogEntry);
   });
@@ -156,6 +157,7 @@ export async function undoTurnTransaction(
       actorName: actor.displayName || 'Unknown',
       originalParticipantName: logToUndo.participantName,
       _participantUids: groupData.participantUids,
+      _adminUids: groupData.adminUids,
     };
 
     // --- THIS IS THE FIX ---
@@ -224,6 +226,7 @@ await runTransaction(db, async (transaction) => {
     actorUid: actor.uid,
     actorName: actor.displayName || 'Unknown',
     _participantUids: groupData.participantUids,
+    _adminUids: groupData.adminUids,
   };
   transaction.set(newLogRef, newLogEntry);
   

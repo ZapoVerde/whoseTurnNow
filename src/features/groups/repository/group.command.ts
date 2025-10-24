@@ -125,6 +125,7 @@ import {
         actorUid: actor.uid,
         actorName: actor.displayName || 'Unknown Actor',
         _participantUids: group.participantUids,
+        _adminUids: group.adminUids,
       };
       transaction.set(newLogRef, newLogEntry);
     });

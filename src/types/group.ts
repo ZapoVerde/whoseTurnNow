@@ -1,25 +1,21 @@
 /**
  * @file packages/whoseturnnow/src/types/group.ts
- * @stamp {"ts":"2025-10-23T06:15:00Z"}
+ * @stamp {"ts":"2025-10-24T12:35:00Z"}
  * @architectural-role Type Definition
- * @description Defines the canonical data structures for the application's core domain, including `Group`, `TurnParticipant`, and all `LogEntry` variants.
+ * @description Defines the canonical data structures for the application's core domain, including the denormalized `_adminUids` map on all log entries to support secure, non-recursive security rules.
  * @core-principles
  * 1. IS the single source of truth for the shape of all group-related data.
  * 2. OWNS the core domain model definitions.
- * 3. MUST be platform-agnostic.
+ * 3. MUST include all denormalized fields required for security rule validation.
  * @api-declaration
  *   - TurnParticipant: The interface for a participant within a group.
  *   - Group: The interface for the central group data entity.
- *   - TurnCompletedLog: An immutable record for a completed turn.
- *   - CountsResetLog: An immutable record for a group-wide turn count reset.
- *   - TurnUndoneLog: An immutable record for a turn reversal action.
- *   - TurnSkippedLog: An immutable record for a skipped turn.
  *   - LogEntry: A union type for all possible log events.
  * @contract
  *   assertions:
- *     purity: pure # This file contains only type definitions and has no runtime logic.
- *     state_ownership: none # This file does not own or manage any application state.
- *     external_io: none # This file does not perform any network or file system I/O.
+ *     purity: pure
+ *     state_ownership: none
+ *     external_io: none
  */
 
 import type { FieldValue } from 'firebase/firestore';
@@ -139,6 +135,11 @@ export interface TurnCompletedLog {
    * time of logging. This field exists solely to enable secure Firestore rule queries.
    */
   _participantUids: Record<string, boolean>;
+  /**
+   * A denormalized snapshot of the parent group's `adminUids` map at the
+   * time of logging. This field exists solely to enable secure Firestore rule queries.
+   */
+  _adminUids: Record<string, boolean>;
 }
 
 /**
@@ -167,6 +168,11 @@ export interface CountsResetLog {
    * time of logging. This field exists solely to enable secure Firestore rule queries.
    */
   _participantUids: Record<string, boolean>;
+  /**
+   * A denormalized snapshot of the parent group's `adminUids` map at the
+   * time of logging. This field exists solely to enable secure Firestore rule queries.
+   */
+  _adminUids: Record<string, boolean>;
 }
 
 /**
@@ -199,6 +205,11 @@ export interface TurnUndoneLog {
      * time of logging. This field exists solely to enable secure Firestore rule queries.
      */
     _participantUids: Record<string, boolean>;
+    /**
+     * A denormalized snapshot of the parent group's `adminUids` map at the
+     * time of logging. This field exists solely to enable secure Firestore rule queries.
+     */
+    _adminUids: Record<string, boolean>;
 }
 
 /**
@@ -235,6 +246,11 @@ export interface TurnSkippedLog {
    * time of logging. This field exists solely to enable secure Firestore rule queries.
    */
   _participantUids: Record<string, boolean>;
+  /**
+   * A denormalized snapshot of the parent group's `adminUids` map at the
+   * time of logging. This field exists solely to enable secure Firestore rule queries.
+   */
+  _adminUids: Record<string, boolean>;
 }
 
 /**
@@ -242,4 +258,3 @@ export interface TurnSkippedLog {
  * @description A union type representing any possible event that can be recorded in a group's immutable turn history.
  */
 export type LogEntry = TurnCompletedLog | CountsResetLog | TurnUndoneLog | TurnSkippedLog;
-

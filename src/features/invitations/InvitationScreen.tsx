@@ -74,8 +74,8 @@ export const InvitationScreen: FC = () => {
     };
 
     joinGroup();
-  }, [status, user, groupId, participantId, navigate, isJoining]);
-
+  //}, [status, user, groupId, participantId, navigate, isJoining]);
+    }, [status, user, groupId, participantId, navigate]);
   if (error) {
     return (
       <Container component="main" maxWidth="xs" sx={{ mt: 8, textAlign: 'center' }}>
