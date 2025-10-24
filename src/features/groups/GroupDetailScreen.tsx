@@ -1,19 +1,21 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/GroupDetailScreen.tsx
- * @stamp {"ts":"2025-10-23T07:20:00Z"}
+ * @stamp {"ts":"2025-10-23T08:15:00Z"}
  * @architectural-role UI Component
  * @description
  * The top-level UI component for the Group Detail feature. It consumes the
  * complete view model from the `useGroupDetail` hook and orchestrates the
- * rendering of all sub-components, including the new FAB-driven dialog for
- * adding participants and the collapsible turn history.
+ * rendering of all sub-components, including the new horizontal action bar.
  * @core-principles
  * 1. IS a "dumb" component that primarily composes other dumb children.
  * 2. MUST NOT contain any direct business logic; this is delegated to its backing hooks.
  * 3. OWNS the side effect of configuring the global `AppBar`.
  * 4. MUST correctly wire up all actions and state to the appropriate child components.
  * @api-declaration
- *   - default: The `GroupDetailScreen` React functional component.
+ *   - URL Parameters: Consumes `groupId` from the route path (`/group/:groupId`).
+ *   - Props: None. This component does not accept any direct props.
+ *   - Side Effects: Configures the global `useAppBarStore` on mount to set the
+ *     screen's title, back button visibility, and contextual actions.
  * @contract
  *   assertions:
  *     purity: pure
@@ -38,8 +40,6 @@ import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import Fab from '@mui/material/Fab';
-import AddIcon from '@mui/icons-material/Add';
 import { useGroupDetail } from './hooks/useGroupDetail';
 import { useAppBar } from '../../shared/hooks/useAppBar';
 import { GroupHeader } from './components/GroupHeader';
@@ -129,33 +129,27 @@ export const GroupDetailScreen: FC = () => {
         <TurnHistory turnLog={turnLog} formatLogEntry={actions.formatLogEntry} />
       </Box>
 
+      {/* --- THIS IS THE FIX --- */}
+      {/* The onAddParticipantClick prop is now correctly wired to the */}
+      {/* dialog's open handler, passing the "wiring" to the child component. */}
       <GroupActionButtons
         isParticipant={!!currentUserParticipant}
         onTurnAction={actions.handleTurnAction}
         onUndoClick={undoDialog.handleOpen}
         onInviteClick={actions.handleGenericInvite}
+        onAddParticipantClick={addParticipantDialog.handleOpen}
         isUserTurn={isUserTurn}
         isSubmitting={isSubmitting}
         undoableAction={undoableAction}
         isAdmin={isAdmin}
       />
 
-      {isAdmin && (
-        <Fab
-          color="secondary"
-          aria-label="Add Participant"
-          sx={{ position: 'fixed', bottom: 88, right: 16 }}
-          onClick={addParticipantDialog.handleOpen}
-        >
-          <AddIcon />
-        </Fab>
-      )}
+      {/* --- The old, standalone FAB has been removed. --- */}
 
-      {/* --- Dialogs and Menus --- */}
       <AddParticipantDialog
         open={addParticipantDialog.isOpen}
         onClose={addParticipantDialog.handleClose}
-        onConfirm={(name) => actions.handleAddParticipant(name)}
+        onConfirm={actions.handleAddParticipant}
         isSubmitting={isSubmitting}
       />
 

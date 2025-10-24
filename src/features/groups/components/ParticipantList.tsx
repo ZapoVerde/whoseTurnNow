@@ -39,12 +39,14 @@ interface ParticipantListProps {
     participant: TurnParticipant,
   ) => void;
   onInviteToClaim: (participantId: string) => void;
+  isAdmin: boolean;
 }
 
 export const ParticipantList: FC<ParticipantListProps> = ({
   participants,
   onParticipantClick,
   onInviteToClaim,
+  isAdmin,
 }) => {
   const theme = useTheme();
 
@@ -61,7 +63,11 @@ export const ParticipantList: FC<ParticipantListProps> = ({
             border: `1px solid ${theme.palette.divider}`,
           }}
         >
-          <ListItemButton onClick={(e) => onParticipantClick(e, participant)}>
+          <ListItemButton
+            onClick={(e) => onParticipantClick(e, participant)}
+            // Only admins should see a reason to click a placeholder
+            disabled={!isAdmin && participant.uid === null}
+          >
             <ListItemText
               primary={participant.nickname || 'Unnamed'}
               secondary={`Turns: ${participant.turnCount}`}
@@ -74,14 +80,18 @@ export const ParticipantList: FC<ParticipantListProps> = ({
                 sx={{ ml: 1 }}
               />
             )}
-            {participant.uid === null && (
+            {isAdmin && participant.uid === null && (
               <Chip
                 icon={<ShareIcon />}
                 label="Invite"
                 size="small"
                 color="secondary"
                 onClick={(e) => {
-                  e.stopPropagation(); // Prevent the main button click
+                  // --- THIS IS THE FIX ---
+                  // This line stops the click from "bubbling up" to the
+                  // parent ListItemButton, ensuring only this chip's
+                  // action is fired.
+                  e.stopPropagation();
                   onInviteToClaim(participant.id);
                 }}
                 sx={{ ml: 1 }}
