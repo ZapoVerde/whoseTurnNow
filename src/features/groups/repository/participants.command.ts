@@ -5,6 +5,7 @@
  * @description
  * Encapsulates all write-only and transactional Firestore interactions for
  * managing a group's participants and membership. This includes adding,
+
  * removing, updating roles, and handling join/leave logic.
  * @core-principles
  * 1. OWNS all write I/O logic for participant and membership management.
@@ -235,7 +236,14 @@ export async function claimPlaceholder(
       throw new Error('This participant slot has already been claimed.');
     }
 
+    // --- THIS IS THE FIX ---
+    // Update the participant's UID to link the account.
     group.participants[participantIndex].uid = user.uid;
+    // Overwrite the placeholder nickname with the user's global displayName,
+    // providing a fallback to satisfy the type system.
+    group.participants[participantIndex].nickname = user.displayName || 'New Member';
+    // --- END FIX ---
+    
     const { participantUids, adminUids } = _deriveUids(group.participants);
 
     transaction.update(groupDocRef, {
@@ -245,3 +253,4 @@ export async function claimPlaceholder(
     });
   });
 }
+

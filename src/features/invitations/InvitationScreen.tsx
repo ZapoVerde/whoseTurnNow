@@ -1,3 +1,4 @@
+// ----- packages/whoseturnnow/src/features/invitations/InvitationScreen.tsx -----
 /**
  * @file packages/whoseturnnow/src/features/invitations/InvitationScreen.tsx
  * @stamp {"ts":"2025-10-23T10:50:00Z"}
@@ -27,7 +28,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import { useAuthStore } from '../auth/useAuthStore';
 import { LoginScreen } from '../auth/LoginScreen';
-// --- FIX: Import the unified repository object ---
 import { groupsRepository } from '../groups/repository';
 import type { Group } from '../../types/group';
 
@@ -48,7 +48,6 @@ export const InvitationScreen: FC = () => {
 
     const fetchGroupData = async () => {
       try {
-        // --- FIX: Call method on the repository object ---
         const group = await groupsRepository.getGroupOnce(groupId);
         setGroupData(group);
       } catch (err) {
@@ -64,6 +63,16 @@ export const InvitationScreen: FC = () => {
     if (!user || !groupId || isJoining || !groupData) {
       return;
     }
+
+    // --- THIS IS THE FIX ---
+    // Before attempting to join, check if the user is already a member.
+    // The `participantUids` map is the most efficient way to do this.
+    if (groupData.participantUids && groupData.participantUids[user.uid]) {
+      // If they are, just redirect them to the group.
+      navigate(`/group/${groupId}`, { replace: true });
+      return; // Stop the effect immediately.
+    }
+    // --- END FIX ---
 
     const joinGroup = async () => {
       setIsJoining(true);

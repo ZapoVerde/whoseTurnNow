@@ -1,3 +1,4 @@
+// ----- packages/whoseturnnow/src/features/groups/hooks/useGroupDerivedState.ts -----
 /**
  * @file packages/whoseturnnow/src/features/groups/hooks/useGroupDerivedState.ts
  * @architectural-role Hook
@@ -42,10 +43,26 @@ export function useGroupDerivedState(
   // 3. Calculate the ordered list of participants for rendering the queue
   const orderedParticipants = useMemo(() => {
     if (!group) return [];
+    
+    // --- THIS IS THE FIX ---
+    // Create a "hydrated" list of participants that substitutes the current
+    // user's (potentially stale) nickname with their fresh global displayName.
+    const hydratedParticipants = group.participants.map(p => {
+      // If this participant is the currently logged-in user...
+      if (user && p.uid === user.uid) {
+        // ...return a new object with their fresh global name.
+        return { ...p, nickname: user.displayName || p.nickname };
+      }
+      // Otherwise, return the participant as-is.
+      return p;
+    });
+    // --- END FIX ---
+
     return group.turnOrder
-      .map((pid) => group.participants.find((p) => p.id === pid))
+      // Use the hydrated list to find the participants
+      .map((pid) => hydratedParticipants.find((p) => p.id === pid))
       .filter((p): p is TurnParticipant => !!p);
-  }, [group]);
+  }, [group, user]); // Add `user` to the dependency array
 
   // 4. Determine if it is currently the user's turn
   const isUserTurn = useMemo(() => {
@@ -61,23 +78,17 @@ export function useGroupDerivedState(
   }, [group, isAdmin]);
 
   // 6. Complex Logic: Find the most recent action this user is allowed to Undo.
-  // Rules: LIFO (slice 0-3), must be 'TURN_COMPLETED', must not be undone already.
-  // Permissions: User must be an Admin OR the original Actor OR the Subject.
+  // ... (rest of the hook remains unchanged) ...
   const undoableAction = useMemo(() => {
     if (!user || !group || !turnLog) return null;
 
-    // Filter down to just the valid candidate logs first
     const completableLogs = turnLog.filter(
       (log): log is TurnCompletedLog & { id: string } =>
         log.type === 'TURN_COMPLETED' && !log.isUndone
     );
 
-    // Scan the last 3 valid candidates
     for (const log of completableLogs.slice(0, 3)) {
-      // Check permissions for this specific log entry
       const isActor = user.uid === log.actorUid;
-
-      // We must find the subject in the CURRENT group state to verify their identity
       const subjectParticipant = group.participants.find(p => p.id === log.participantId);
       const isSubject = !!subjectParticipant && user.uid === subjectParticipant.uid;
 
