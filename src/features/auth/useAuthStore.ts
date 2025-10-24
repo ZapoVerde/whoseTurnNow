@@ -29,51 +29,18 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
-/**
- * @id packages/whoseturnnow/src/features/auth/useAuthStore.ts#AppUser
- * @description A simplified, application-specific representation of a user's identity.
- */
 export interface AppUser {
-  /**
-   * The unique, stable identifier for the user, provided by the authentication service.
-   */
   uid: string;
-  /**
-   * The user's chosen global display name. Can be null during initial setup.
-   */
   displayName: string | null;
-  /**
-   * A flag indicating whether the user is in a temporary, anonymous session.
-   */
   isAnonymous: boolean;
 }
 
 export interface AuthState {
-  /**
-   * The current status of the authentication lifecycle.
-   * 'initializing': The application is starting and has not yet received the auth state.
-   * 'authenticated': A user is signed in.
-   * 'unauthenticated': No user is signed in.
-   * 'new-user': A new user is signed in but has not yet set their display name.
-   */
   status: 'initializing' | 'authenticated' | 'unauthenticated' | 'new-user';
-  /**
-   * The application-specific user object for the currently authenticated user, or null.
-   */
   user: AppUser | null;
-  /**
-   * Sets the state to 'authenticated' and stores the provided user object.
-   * @param user The user object for the newly authenticated user.
-   */
   setAuthenticated: (user: AppUser) => void;
-  /**
-   * Sets the state to 'unauthenticated' and clears the user object.
-   */
   setUnauthenticated: () => void;
-  /**
-   * Manually sets the authentication status, typically for managing the 'initializing' state.
-   * @param status The new authentication status.
-   */
+  setNewUser: (user: AppUser) => void;
   setStatus: (status: AuthState['status']) => void;
 }
 
@@ -87,24 +54,29 @@ export const useAuthStore = create<AuthState>()(
     ...initialState,
     setAuthenticated: (user) =>
       set((state) => {
-        // --- ADD THIS BLOCK ---
+        // --- DEBUG LOG ---
         console.log('[AuthStore] ACTION: setAuthenticated', { user });
-        // --- END BLOCK ---
         state.user = user;
+        state.status = 'authenticated';
       }),
     setUnauthenticated: () =>
       set((state) => {
-        // --- ADD THIS BLOCK ---
+        // --- DEBUG LOG ---
         console.log('[AuthStore] ACTION: setUnauthenticated');
-        // --- END BLOCK ---
         state.user = null;
         state.status = 'unauthenticated';
       }),
+    setNewUser: (user) =>
+      set((state) => {
+        // --- DEBUG LOG ---
+        console.log('[AuthStore] ACTION: setNewUser', { user });
+        state.user = user;
+        state.status = 'new-user';
+      }),
     setStatus: (status) =>
       set((state) => {
-        // --- ADD THIS BLOCK ---
+        // --- DEBUG LOG ---
         console.log(`[AuthStore] ACTION: setStatus to '${status}'`);
-        // --- END BLOCK ---
         state.status = status;
       }),
   })),

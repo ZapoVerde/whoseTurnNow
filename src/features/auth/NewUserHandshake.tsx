@@ -25,7 +25,9 @@ import { userRepository } from './userRepository';
 
 export const NewUserHandshake: React.FC = () => {
   const user = useAuthStore((state) => state.user);
-  const { setStatus, setAuthenticated } = useAuthStore();
+  // --- THIS IS THE FIX (Part 1) ---
+  // We only need the `setAuthenticated` action now.
+  const { setAuthenticated } = useAuthStore();
   const [displayName, setDisplayName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -40,12 +42,14 @@ export const NewUserHandshake: React.FC = () => {
       const newUserProfile = { ...user, displayName: displayName.trim() };
       await userRepository.createUserProfile(newUserProfile);
       
-      // Update the store with the now-complete profile and move to the main app
+      // --- THIS IS THE FIX (Part 2) ---
+      // Call the single, atomic `setAuthenticated` action. This correctly
+      // updates the user object and sets the status to 'authenticated',
+      // completing the login flow.
       setAuthenticated(newUserProfile);
-      setStatus('authenticated');
+      // --- END FIX ---
     } catch (error) {
       console.error("Failed to create user profile:", error);
-      // In a real app, you might show an error message here.
     } finally {
       setIsSubmitting(false);
     }

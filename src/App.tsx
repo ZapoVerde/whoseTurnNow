@@ -27,11 +27,10 @@ import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useAuthStore } from './features/auth/useAuthStore';
 import { useFirebaseAuthListener } from './features/auth/useFirebaseAuthListener';
-import { useRoutePreloader } from './shared/hooks/useRoutePreloader';
 import { MainLayout } from './shared/components/layout/MainLayout';
 import { NewUserHandshake } from './features/auth/NewUserHandshake';
 
-// --- Lazy-loaded Screen Components ---
+// Lazy-loaded Screen Components
 const LoginScreen = React.lazy(() =>
   import('./features/auth/LoginScreen').then(module => ({ default: module.LoginScreen }))
 );
@@ -41,15 +40,11 @@ const DashboardScreen = React.lazy(() =>
 const InvitationScreen = React.lazy(() =>
   import('./features/invitations/InvitationScreen').then(module => ({ default: module.InvitationScreen }))
 );
-
-const loadGroupDetail = () => import('./features/groups/GroupDetailScreen');
-const loadSettings = () => import('./features/settings/SettingsScreen');
-
 const GroupDetailScreen = React.lazy(() =>
-  loadGroupDetail().then(module => ({ default: module.GroupDetailScreen }))
+  import('./features/groups/GroupDetailScreen').then(module => ({ default: module.GroupDetailScreen }))
 );
 const SettingsScreen = React.lazy(() =>
-  loadSettings().then(module => ({ default: module.SettingsScreen }))
+  import('./features/settings/SettingsScreen').then(module => ({ default: module.SettingsScreen }))
 );
 
 const FullScreenLoader = () => (
@@ -59,13 +54,11 @@ const FullScreenLoader = () => (
 );
 
 const AuthenticatedRoutes: React.FC = () => {
-  // --- THIS HOOK HAS BEEN MOVED TO THE App COMPONENT ---
+  // This component now only reads the status. The listener is global.
   const authStatus = useAuthStore((state) => state.status);
 
+  // --- DEBUG LOG ---
   console.log(`[Router] Rendering with authStatus: '${authStatus}'`);
-
-  const routesToPreload = [loadGroupDetail, loadSettings];
-  useRoutePreloader(routesToPreload);
 
   if (authStatus === 'initializing') {
       return <FullScreenLoader />;
@@ -76,6 +69,7 @@ const AuthenticatedRoutes: React.FC = () => {
   }
 
   if (authStatus === 'unauthenticated') {
+      // For any non-public route, render the LoginScreen
       return (
           <Routes>
               <Route path="*" element={<LoginScreen />} />
@@ -83,12 +77,14 @@ const AuthenticatedRoutes: React.FC = () => {
       );
   }
   
+  // User is fully authenticated, render the main app layout
   return (
       <Routes>
           <Route element={<MainLayout />}>
               <Route path="/" element={<DashboardScreen />} />
               <Route path="/group/:groupId" element={<GroupDetailScreen />} />
               <Route path="/settings" element={<SettingsScreen />} />
+              {/* Redirect any other authenticated path to the dashboard */}
               <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
       </Routes>
@@ -96,7 +92,6 @@ const AuthenticatedRoutes: React.FC = () => {
 };
 
 export const App: React.FC = () => {
-  // --- THIS IS THE FIX ---
   // By placing the listener here, it is mounted once at the root of the
   // application and remains active for all routes, including the public
   // /join route, which resolves the deadlock.
@@ -106,7 +101,10 @@ export const App: React.FC = () => {
     <BrowserRouter>
       <Suspense fallback={<FullScreenLoader />}>
         <Routes>
+          {/* Public routes that are always accessible */}
           <Route path="/join/:groupId" element={<InvitationScreen />} />
+          
+          {/* All other routes are handled by our state-aware router */}
           <Route path="/*" element={<AuthenticatedRoutes />} />
         </Routes>
       </Suspense>

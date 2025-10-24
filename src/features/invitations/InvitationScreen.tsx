@@ -1,22 +1,25 @@
-// ----- packages/whoseturnnow/src/features/invitations/InvitationScreen.tsx -----
 /**
  * @file packages/whoseturnnow/src/features/invitations/InvitationScreen.tsx
  * @stamp {"ts":"2025-10-23T10:50:00Z"}
- * @architectural-role Feature Entry Point
+ * @architectural-role Feature Entry Point, Orchestrator
  * @description
- * Manages the entire user flow for accepting an invitation, handling both
- * generic and targeted "hand-off" scenarios.
+ * Manages the entire user flow for accepting an invitation. It acts as a
+ * self-contained orchestrator, displaying the correct onboarding UI (`LoginScreen`
+ * or `NewUserHandshake`) before executing the final join action.
  * @core-principles
  * 1. OWNS the logic for parsing invitation context from the URL.
- * 2. ORCHESTRATES the user authentication flow for new invitees.
- * 3. DELEGATES the final data mutation for joining a group to the `groupsRepository` module.
+ * 2. ORCHESTRATES the full authentication and user creation UI for invitees.
+ * 3. MUST wait for the user's status to be 'authenticated' before joining the group.
  * @api-declaration
- *   - default: The InvitationScreen React functional component.
+ *   - URL Parameters: Consumes `groupId` from the route path (`/join/:groupId`)
+ *     and an optional `participantId` from the query string.
+ *   - Props: None. This is a route-level entry point.
+ *   - Side Effects: Triggers database writes and redirects the user upon completion.
  * @contract
  *   assertions:
- *     purity: mutates # This component manages local UI state and has side effects.
- *     state_ownership: none # It subscribes to global state but does not own it.
- *     external_io: firestore # It initiates calls that result in Firestore I/O.
+ *     purity: mutates
+ *     state_ownership: [groupData, isJoining, error]
+ *     external_io: firestore
  */
 
 import { useState, useEffect, type FC } from 'react';
@@ -28,6 +31,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import { useAuthStore } from '../auth/useAuthStore';
 import { LoginScreen } from '../auth/LoginScreen';
+import { NewUserHandshake } from '../auth/NewUserHandshake';
 import { groupsRepository } from '../groups/repository';
 import type { Group } from '../../types/group';
 
@@ -43,13 +47,26 @@ export const InvitationScreen: FC = () => {
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // --- DEBUG LOG: Component mount and context ---
+  useEffect(() => {
+    console.log('[InvitationScreen] MOUNTED.', { groupId, participantId });
+  }, [groupId, participantId]);
+  
+  // --- DEBUG LOG: Auth state changes ---
+  useEffect(() => {
+    console.log('[InvitationScreen] Auth state changed:', { status, user: user?.uid });
+  }, [status, user]);
+
   useEffect(() => {
     if (!groupId) return;
 
     const fetchGroupData = async () => {
+      // --- DEBUG LOG ---
+      console.log('[InvitationScreen] Fetching group data...');
       try {
         const group = await groupsRepository.getGroupOnce(groupId);
         setGroupData(group);
+        console.log('[InvitationScreen] Group data FETCHED.', { name: group?.name });
       } catch (err) {
         console.error('Failed to fetch group data for invitation:', err);
         setError('Could not load invitation details.');
@@ -60,29 +77,28 @@ export const InvitationScreen: FC = () => {
   }, [groupId]);
 
   useEffect(() => {
-    if (!user || !groupId || isJoining || !groupData) {
+    if (status !== 'authenticated' || !user || !groupId || isJoining || !groupData) {
       return;
     }
 
-    // --- THIS IS THE FIX ---
-    // Before attempting to join, check if the user is already a member.
-    // The `participantUids` map is the most efficient way to do this.
     if (groupData.participantUids && groupData.participantUids[user.uid]) {
-      // If they are, just redirect them to the group.
+      console.log('[InvitationScreen] User is already a member. Redirecting.');
       navigate(`/group/${groupId}`, { replace: true });
-      return; // Stop the effect immediately.
+      return;
     }
-    // --- END FIX ---
 
     const joinGroup = async () => {
       setIsJoining(true);
       setError(null);
+      // --- DEBUG LOG ---
+      console.log('[InvitationScreen] User is authenticated. Attempting to join group...');
       try {
         if (participantId) {
           await groupsRepository.claimPlaceholder(groupId, participantId, user);
         } else {
           await groupsRepository.joinGroupAsNewParticipant(groupId, user);
         }
+        console.log('[InvitationScreen] Join successful. Redirecting...');
         navigate(`/group/${groupId}`, { replace: true });
       } catch (err: any) {
         console.error('Failed to join group:', err);
@@ -96,7 +112,7 @@ export const InvitationScreen: FC = () => {
     };
 
     joinGroup();
-  }, [user, groupId, participantId, navigate, isJoining, groupData]);
+  }, [status, user, groupId, participantId, navigate, isJoining, groupData]);
 
   if (error) {
     return (
@@ -109,30 +125,19 @@ export const InvitationScreen: FC = () => {
     );
   }
 
-  if (isJoining || !groupData || status === 'initializing') {
+  if (!groupData || status === 'initializing') {
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-        }}
-      >
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
-        <Typography sx={{ mt: 2 }}>
-          {groupData ? `Joining '${groupData.name}'...` : 'Loading invitation...'}
-        </Typography>
       </Box>
     );
   }
 
-  if (status === 'unauthenticated') {
-    const welcomeMessage = participantId
-      ? `You've been invited to take over a spot in '${groupData.name}'!`
-      : `You've been invited to join '${groupData.name}'!`;
+  const welcomeMessage = participantId
+    ? `You've been invited to take over a spot in '${groupData.name}'!`
+    : `You've been invited to join '${groupData.name}'!`;
 
+  if (status === 'unauthenticated') {
     return (
       <Container component="main" maxWidth="xs" sx={{ mt: 4, textAlign: 'center' }}>
         <Typography variant="h6" gutterBottom>
@@ -146,16 +151,32 @@ export const InvitationScreen: FC = () => {
     );
   }
 
+  if (status === 'new-user') {
+    return (
+      <Container component="main" maxWidth="xs" sx={{ mt: 4, textAlign: 'center' }}>
+        <Typography variant="h6" gutterBottom>
+          {welcomeMessage}
+        </Typography>
+        <NewUserHandshake />
+      </Container>
+    );
+  }
+
+  // Covers the 'authenticated' but not yet joined state.
   return (
     <Box
       sx={{
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         height: '100vh',
       }}
     >
       <CircularProgress />
+      <Typography sx={{ mt: 2 }}>
+        {`Joining '${groupData.name}'...`}
+      </Typography>
     </Box>
   );
 };

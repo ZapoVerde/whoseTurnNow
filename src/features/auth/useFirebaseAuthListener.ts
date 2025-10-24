@@ -32,18 +32,21 @@ import { useAuthStore } from './useAuthStore';
 import { userRepository } from './userRepository';
 
 export function useFirebaseAuthListener() {
-  const { setAuthenticated, setUnauthenticated, setStatus } = useAuthStore();
+  const { setAuthenticated, setUnauthenticated, setNewUser } = useAuthStore();
 
   useEffect(() => {
+    // --- DEBUG LOG ---
     console.log('[Listener] Hook MOUNTED. Subscribing to auth changes.');
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      // --- DEBUG LOG ---
       console.log('[Listener] onAuthStateChanged FIRED.', { 
         uid: firebaseUser?.uid, 
         isAnonymous: firebaseUser?.isAnonymous 
       });
 
       if (!firebaseUser) {
+        // --- DEBUG LOG ---
         console.log('[Listener] User is NULL. Setting unauthenticated.');
         setUnauthenticated();
         return;
@@ -52,16 +55,13 @@ export function useFirebaseAuthListener() {
       const userProfile = await userRepository.getUserProfile(firebaseUser.uid);
 
       if (userProfile) {
+        // --- DEBUG LOG ---
         console.log('[Listener] Profile FOUND in database. Setting authenticated.', userProfile);
-        // --- THIS IS THE FIX ---
-        // We must update both the user object AND the application status.
         setAuthenticated(userProfile);
-        setStatus('authenticated');
-        // --- END FIX ---
       } else {
-        console.log('[Listener] Profile NOT FOUND. Setting status to new-user.');
-        setStatus('new-user');
-        setAuthenticated({
+        // --- DEBUG LOG ---
+        console.log('[Listener] Profile NOT FOUND. Setting to new-user state.');
+        setNewUser({
           uid: firebaseUser.uid,
           displayName: null,
           isAnonymous: firebaseUser.isAnonymous,
@@ -70,8 +70,9 @@ export function useFirebaseAuthListener() {
     });
 
     return () => {
+      // --- DEBUG LOG ---
       console.log('[Listener] Hook UNMOUNTED. Unsubscribing.');
       unsubscribe();
-    }
-  }, [setAuthenticated, setUnauthenticated, setStatus]);
+    };
+  }, [setAuthenticated, setUnauthenticated, setNewUser]);
 }
