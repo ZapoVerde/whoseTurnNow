@@ -3,15 +3,12 @@
  * @stamp {"ts":"2025-10-23T11:25:00Z"}
  * @architectural-role UI Component, Orchestrator
  * @description
- * Renders the user's main dashboard and acts as an orchestrator for performance
- * optimizations. It fetches and displays the user's lists and opportunistically
- * pre-loads non-critical assets like the emoji picker to improve subsequent
- * interaction performance.
+ * Renders the user's main dashboard. It fetches and displays the user's lists
+ * and provides the primary UI for creating new lists and navigating to settings.
  * @core-principles
  * 1. IS the primary UI for displaying a user's collection of lists.
  * 2. MUST declaratively configure the global AppBar for its context.
- * 3. MUST orchestrate the pre-loading of non-critical, lazy-loaded assets.
- * 4. DELEGATES all data fetching to the `groupsRepository` module.
+ * 3. DELEGATES all data fetching to the `groupsRepository` module.
  * @api-declaration
  *   - default: The DashboardScreen React functional component.
  * @contract
@@ -36,6 +33,7 @@ import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
+import Card from '@mui/material/Card';
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { useAuthStore } from '../auth/useAuthStore';
@@ -44,9 +42,21 @@ import type { Group } from '../../types/group';
 import { CreateListDialog } from '../groups/CreateListDialog';
 import { useAppBar } from '../../shared/hooks/useAppBar';
 import { useMenuState } from '../groups/hooks/useMenuState';
-import { useComponentPreloader } from '../../shared/hooks/useComponentPreloader';
 
-const preloadEmojiPicker = () => import('emoji-picker-react');
+// --- THIS IS THE FIX (Part 1) ---
+// The business logic is extracted into a pure helper function.
+// This separates the calculation from the rendering.
+const getNextParticipantName = (group: Group): string => {
+  if (!group.turnOrder || group.turnOrder.length === 0) {
+    return 'No one is in the list';
+  }
+  const nextParticipantId = group.turnOrder[0];
+  const nextParticipant = group.participants.find(
+    (p) => p.id === nextParticipantId,
+  );
+  return nextParticipant?.nickname || 'Unknown participant';
+};
+// --- END FIX ---
 
 export const DashboardScreen: FC = () => {
   const navigate = useNavigate();
@@ -56,20 +66,15 @@ export const DashboardScreen: FC = () => {
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const settingsMenu = useMenuState();
 
-  useComponentPreloader([preloadEmojiPicker]);
-
-  // --- THIS IS THE FIX ---
-  // The static 'Dashboard' title is replaced with a Stack component that
-  // renders the red emoji and the application's name.
   useAppBar({
     title: (
       <Stack direction="row" spacing={1} alignItems="center">
-        <Typography variant="h6" sx={{ color: 'error.main' }}>
-          ❓
-        </Typography>
         <Typography variant="h6" component="div">
           Whose Turn Now
         </Typography>
+        <Typography variant="h6" sx={{ color: 'error.main' }}>
+          ❓
+        </Typography>        
       </Stack>
     ),
     actions: (
@@ -78,7 +83,6 @@ export const DashboardScreen: FC = () => {
       </IconButton>
     ),
   });
-  // --- END FIX ---
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -104,18 +108,26 @@ export const DashboardScreen: FC = () => {
             No lists yet. Create one to get started!
           </Typography>
         ) : (
-          <List>
+          <Stack spacing={1}>
             {groups.map((group) => (
-              <ListItem key={group.gid} disablePadding>
-                <ListItemButton onClick={() => navigate(`/group/${group.gid}`)}>
-                  <ListItemIcon>
-                    <Typography variant="h6">{group.icon}</Typography>
-                  </ListItemIcon>
-                  <ListItemText primary={group.name} />
-                </ListItemButton>
-              </ListItem>
+              <Card key={group.gid}>
+                <ListItem disablePadding>
+                  <ListItemButton onClick={() => navigate(`/group/${group.gid}`)}>
+                    <ListItemIcon>
+                      <Typography variant="h6">{group.icon}</Typography>
+                    </ListItemIcon>
+                    {/* --- THIS IS THE FIX (Part 2) --- */}
+                    {/* The JSX now only calls the helper function, making it cleaner. */}
+                    <ListItemText
+                      primary={group.name}
+                      secondary={`Up next: ${getNextParticipantName(group)}`}
+                    />
+                    {/* --- END FIX --- */}
+                  </ListItemButton>
+                </ListItem>
+              </Card>
             ))}
-          </List>
+          </Stack>
         )}
       </Box>
       <Fab
