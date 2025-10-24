@@ -1,16 +1,16 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/components/TurnHistory.tsx
- * @stamp {"ts":"2025-10-23T07:05:00Z"}
+ * @stamp {"ts":"2025-10-24T07:38:00Z"}
  * @architectural-role UI Component
  * @description
  * A stateful, presentational component that renders the immutable turn history
- * log. It is collapsed by default, showing only the most recent action, and
- * can be expanded by the user to view the full history.
+ * log. It is collapsed by default and uses a dedicated utility to format
+ * timestamps for display in the user's local timezone.
  * @core-principles
  * 1. IS a self-contained, stateful presentational component.
  * 2. OWNS its own `isExpanded` UI state.
  * 3. MUST render UI based solely on the props it receives and its internal state.
- * 4. DELEGATES the content generation for log entries to its parent.
+ * 4. DELEGATES the content generation and timestamp formatting to its parent/utils.
  * @api-declaration
  *   - default: The TurnHistory React functional component.
  * @contract
@@ -30,6 +30,7 @@ import Paper from '@mui/material/Paper';
 import Button from '@mui/material/Button';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import type { LogEntry } from '../../../types/group';
+import { formatFirestoreTimestamp } from '../../../shared/utils/formatDate';
 
 interface TurnHistoryProps {
   turnLog: (LogEntry & { id: string })[];
@@ -52,7 +53,10 @@ export const TurnHistory: FC<TurnHistoryProps> = ({ turnLog, formatLogEntry }) =
             <ListItem key={log.id} sx={{ py: 0.5 }}>
               <ListItemText
                 primary={formatLogEntry(log)}
-                secondary={new Date().toLocaleDateString()} // Placeholder timestamp
+                // --- THIS IS THE FIX ---
+                // Replaced the placeholder with a call to our new utility.
+                secondary={formatFirestoreTimestamp(log.completedAt)}
+                // --- END FIX ---
                 sx={
                   log.type === 'TURN_COMPLETED' && log.isUndone
                     ? { textDecoration: 'line-through', color: 'text.disabled' }

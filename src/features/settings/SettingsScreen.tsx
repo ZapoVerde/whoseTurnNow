@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/settings/SettingsScreen.tsx
- * @stamp {"ts":"2025-10-22T18:50:00Z"}
+ * @stamp {"ts":"2025-10-24T07:45:00Z"}
  * @architectural-role Feature Entry Point
  * @description
  * Renders the UI for global account management. It uses the `useAppBar` hook to
@@ -86,7 +86,6 @@ export const SettingsScreen: React.FC = () => {
         throw new Error(`Cannot delete account. You are the last admin of "${blockingGroup}". Please promote another admin or delete the group first.`);
       }
       await userRepository.deleteUserAccount();
-      // On success, the auth listener will handle navigation.
     } catch (error: any) {
       setFeedback({
         message: error.message || 'Failed to delete account.',
@@ -100,14 +99,13 @@ export const SettingsScreen: React.FC = () => {
   
   return (
     <>
-      {/* --- THIS IS FIX #13 --- */}
       <Box component="main">
         <Stack spacing={4}>
+          {/* --- PROFILE SECTION --- */}
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               Profile
             </Typography>
-            {/* --- THIS IS FIX #14 --- */}
             <Stack component="form" spacing={2} onSubmit={(e) => { e.preventDefault(); handleSaveDisplayName(); }}>
               <TextField
                 label="Global Display Name"
@@ -127,9 +125,9 @@ export const SettingsScreen: React.FC = () => {
                 </Button>
               </Box>
             </Stack>
-            {/* --- END FIX --- */}
           </Paper>
 
+          {/* --- THEME SETTINGS SECTION --- */}
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               Theme Settings
@@ -137,9 +135,20 @@ export const SettingsScreen: React.FC = () => {
             <ThemeControls />
           </Paper>
 
+          {/* --- ABOUT SECTION --- */}
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               About
+            </Typography>
+            <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 'bold' }}>
+              A Simple Tool for a Simple Problem
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+              "Whose Turn Now" is a lightweight, open-source utility built to answer a common question with a clean, transparent, and forgiving interface.
+              <br /><br />
+              The core principle is fairness through transparency. Every action—completing a turn, skipping, or undoing—is recorded in a permanent, timestamped log. There's no "sneaky business," just a clear, auditable history.
+              <br /><br />
+              This project is freely available and developed in the open.
             </Typography>
             <Button
               variant="outlined"
@@ -155,6 +164,7 @@ export const SettingsScreen: React.FC = () => {
 
           <Divider />
 
+          {/* --- DANGER ZONE --- */}
           <Paper sx={{ p: 3, border: 1, borderColor: 'error.main' }}>
             <Typography variant="h6" color="error" gutterBottom>
               Danger Zone
@@ -173,6 +183,7 @@ export const SettingsScreen: React.FC = () => {
         </Stack>
       </Box>
 
+      {/* ... Dialogs and Snackbar remain unchanged ... */}
       <Dialog open={isDeleteDialogOpen} onClose={() => setIsDeleteDialogOpen(false)}>
         <DialogTitle>Are you absolutely sure?</DialogTitle>
         <DialogContent>

@@ -98,6 +98,12 @@ export const LoginScreen: FC = () => {
           Whose Turn Now
         </Typography>
 
+        <Typography variant="body2" color="text.secondary" align="center" sx={{ px: 2 }}>
+          A simple, real-time utility for tracking turns.
+          <br />
+          Perfect for chores, game nights, or any recurring task.
+        </Typography>
+
         <Box sx={{ borderBottom: 1, borderColor: 'divider', width: '100%' }}>
           <Tabs value={tab} onChange={handleTabChange} variant="fullWidth">
             <Tab label="Log In" value="login" />

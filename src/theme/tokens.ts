@@ -1,6 +1,6 @@
 /**
  * @file src/theme/tokens.ts
- * @stamp {"ts":"2025-09-19T10:37:00Z"}
+ * @stamp {"ts":"2025-10-24T07:42:00Z"}
  * @architectural-role Design System Definition
  *
  * @description
@@ -19,38 +19,38 @@
  * 2. MUST export only plain constant objects.
  * 3. MUST be dependency-free.
  */
-// Brand tokens incorporating new palette additions from Phase 1
+// "Modern Slate & Vivid Yellow" Palette
 export const TOKENS = {
   // Light Mode Colors
-  lightBgDefault: '#f2e9e4',
-  lightBgPaper: '#FFFFFF', // Keeping paper white for contrast on the light background
-  lightTextPrimary: '#22223b',
-  lightTextSecondary: '#c9ada7',
-  dividerLight: '#c9ada7',
+  lightBgDefault: '#F8F9FA',
+  lightBgPaper: '#F8F9FA', 
+  lightTextPrimary: '#212529',
+  lightTextSecondary: '#495057',
+  dividerLight: '#DEE2E6',
 
   // Dark Mode Colors
-  darkBgDefault: '#22223b',
-  darkBgPaper: '#4a4e69', // Using primary for paper to create contrast
-  darkTextPrimary: '#f2e9e4',
-  darkTextSecondary: '#c9ada7',
-  dividerDark: '#9a8c98',
+  darkBgDefault: '#212529',
+  darkBgPaper: '#495057', 
+  darkTextPrimary: '#F8F9FA',
+  darkTextSecondary: '#DEE2E6',
+  dividerDark: '#495057',
 
   // Universal Brand Colors
-  primaryLight: '#4a4e69',
-  primaryDark: '#9a8c98', // A slightly lighter variant for better contrast on dark BG
-  secondaryLight: '#9a8c98',
-  secondaryDark: '#c9ada7',
+  primaryLight: '#495057', // Slate
+  primaryDark: '#DEE2E6', // Light grey for contrast in dark mode
+  secondaryLight: '#FFC107', // Vivid Yellow Accent
+  secondaryDark: '#FFC107', // Vivid Yellow works in both modes
 
-  // Semantic Colors (derived for consistency)
-  pinnedLight: 'rgba(74, 78, 105, 0.85)', // primaryLight with alpha
-  pinnedDark: 'rgba(154, 140, 152, 0.40)',// primaryDark with alpha
+  // Semantic Colors (Simplified for the new palette)
+  pinnedLight: 'rgba(73, 80, 87, 0.85)', 
+  pinnedDark: 'rgba(222, 226, 230, 0.40)',
   chipBgLight: 'rgba(255, 255, 255, 0.70)',
   chipBgDark: 'rgba(0, 0, 0, 0.40)',
-  frostedLight: 'rgba(255, 255, 255, 0.60)',
-  frostedDark: 'rgba(34, 34, 59, 0.40)',   // darkBgDefault with alpha
+  frostedLight: 'rgba(248, 249, 250, 0.8)',
+  frostedDark: 'rgba(33, 37, 41, 0.6)',
 };
 
-// Phase 1 Addition: New consistent shadow ladder
+// SHADOWS, RADII, TRANSITIONS, and Z_INDEX remain unchanged as they are not color-dependent.
 export const SHADOWS = [
   'none',
   '0 1px 1px rgba(0,0,0,0.12)',
@@ -80,9 +80,9 @@ export const SHADOWS = [
 ];
 
 export const RADII = {
-  small: 8, // For small elements like tags or inputs
-  medium: 12, // For cards and buttons
-  large: 16, // For larger containers or modals
+  small: 8, 
+  medium: 12, 
+  large: 16, 
 };
 
 export const TRANSITIONS = {
