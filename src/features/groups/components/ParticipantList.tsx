@@ -1,15 +1,15 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/components/ParticipantList.tsx
- * @stamp {"ts":"2025-10-24T07:55:00Z"}
+ * @stamp {"ts":"2025-10-24T08:12:00Z"}
  * @architectural-role UI Component
  * @description
- * Renders the ordered list of participants. It now uses the theme's accent
- * color to highlight the participant whose turn is next, reinforcing the
- * application's primary visual hierarchy.
+ * Renders the ordered list of participants. It uses a combination of an accent
+ * border, increased font weight, and spacing to create a strong visual hierarchy
+ * that clearly emphasizes the participant whose turn is next.
  * @core-principles
  * 1. IS a pure, presentational ("dumb") component.
- * 2. MUST use the theme's accent color to visually distinguish the next participant.
- * 3. MUST render UI based solely on the props it receives.
+ * 2. MUST use distinct styling (bolding, spacing, border) to visually distinguish the next participant.
+ * 3. MUST render all participant names with an increased, uniform font size for readability.
  * 4. DELEGATES all user interactions to its parent component via callbacks.
  * @api-declaration
  *   - default: The ParticipantList React functional component.
@@ -55,23 +55,30 @@ export const ParticipantList: FC<ParticipantListProps> = ({
         <Card
           key={participant.id}
           sx={{
-            // --- THIS IS THE FIX: Use the accent color for the highlight ---
             boxShadow:
               index === 0
                 ? `0 0 8px 2px ${theme.palette.secondary.main}`
                 : theme.shadows[1],
-            // --- END FIX ---
             border: `1px solid ${theme.palette.divider}`,
+            // --- THIS IS THE FIX: Add margin-bottom only to the first item ---
+            mb: index === 0 ? 2 : 0,
           }}
         >
           <ListItemButton
             onClick={(e) => onParticipantClick(e, participant)}
             disabled={!isAdmin && participant.uid === null}
           >
+            {/* --- THIS IS THE FIX: Uniform size, conditional bolding --- */}
             <ListItemText
               primary={participant.nickname || 'Unnamed'}
               secondary={`Turns: ${participant.turnCount}`}
+              primaryTypographyProps={{
+                variant: 'h6', // Larger font size for ALL participants
+                fontWeight: index === 0 ? 'bold' : 'normal', // BOLD for the first participant only
+                component: 'span',
+              }}
             />
+            {/* --- END FIX --- */}
             {participant.role === 'admin' && (
               <Chip
                 icon={<AdminPanelSettingsIcon />}
@@ -81,7 +88,6 @@ export const ParticipantList: FC<ParticipantListProps> = ({
               />
             )}
             {isAdmin && participant.uid === null && (
-              // --- THIS IS THE FIX: Changed from secondary to primary ---
               <Chip
                 icon={<ShareIcon />}
                 label="Invite"
