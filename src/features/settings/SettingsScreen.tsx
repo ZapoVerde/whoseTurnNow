@@ -34,6 +34,7 @@ import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
+import GitHubIcon from '@mui/icons-material/GitHub'; // <-- ADD THIS IMPORT
 import { useAuthStore } from '../auth/useAuthStore';
 import { userRepository } from '../auth/userRepository';
 import { ThemeControls } from '../../theme/components/ThemeControls';
@@ -132,6 +133,24 @@ export const SettingsScreen: React.FC = () => {
           </Typography>
           <ThemeControls />
         </Paper>
+
+        {/* --- THIS IS THE FIX --- */}
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            About
+          </Typography>
+          <Button
+            variant="outlined"
+            startIcon={<GitHubIcon />}
+            component="a"
+            href="https://github.com/ZapoVerde/whoseTurnNow"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View on GitHub
+          </Button>
+        </Paper>
+        {/* --- END FIX --- */}
 
         <Divider />
 
