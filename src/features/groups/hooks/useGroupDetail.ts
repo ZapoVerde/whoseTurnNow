@@ -49,6 +49,7 @@ export function useGroupDetail(groupId: string | undefined) {
   const deleteDialog = useDialogState(actions.handleConfirmDelete);
   const resetDialog = useDialogState(actions.handleConfirmReset);
   const undoDialog = useDialogState(actions.handleConfirmUndo);
+  const skipDialog = useDialogState(actions.handleSkipTurn);
   
   const addParticipantDialog = useDialogState(async (name?: string) => {
     if (typeof name === 'string') {
@@ -131,6 +132,7 @@ export function useGroupDetail(groupId: string | undefined) {
     resetDialog,
     deleteDialog,
     undoDialog,
+    skipDialog,
     addParticipantDialog,
 
     // Actions that need to be composed with local UI state

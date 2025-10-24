@@ -13,6 +13,7 @@
  *   - TurnCompletedLog: An immutable record for a completed turn.
  *   - CountsResetLog: An immutable record for a group-wide turn count reset.
  *   - TurnUndoneLog: An immutable record for a turn reversal action.
+ *   - TurnSkippedLog: An immutable record for a skipped turn.
  *   - LogEntry: A union type for all possible log events.
  * @contract
  *   assertions:
@@ -200,9 +201,45 @@ export interface TurnUndoneLog {
     _participantUids: Record<string, boolean>;
 }
 
+/**
+ * @id packages/whoseturnnow/src/types/group.ts#TurnSkippedLog
+ * @description An immutable record representing a user skipping their turn.
+ */
+export interface TurnSkippedLog {
+  /**
+   * The unique, machine-readable identifier for this type of log entry.
+   */
+  type: 'TURN_SKIPPED';
+  /**
+   * The server-generated timestamp indicating when the turn was skipped.
+   */
+  completedAt: FieldValue;
+  /**
+   * The unique ID of the participant slot whose turn was skipped.
+   */
+  participantId: string;
+  /**
+   * A snapshot of the participant's name at the moment their turn was skipped.
+   */
+  participantName: string;
+  /**
+   * The unique ID of the user who initiated the skip action.
+   */
+  actorUid: string;
+  /**
+   * A snapshot of the actor's name at the moment the action was initiated.
+   */
+  actorName: string;
+  /**
+   * A denormalized snapshot of the parent group's `participantUids` map at the
+   * time of logging. This field exists solely to enable secure Firestore rule queries.
+   */
+  _participantUids: Record<string, boolean>;
+}
 
 /**
  * @id packages/whoseturnnow/src/types/group.ts#LogEntry
  * @description A union type representing any possible event that can be recorded in a group's immutable turn history.
  */
-export type LogEntry = TurnCompletedLog | CountsResetLog | TurnUndoneLog;
+export type LogEntry = TurnCompletedLog | CountsResetLog | TurnUndoneLog | TurnSkippedLog;
+

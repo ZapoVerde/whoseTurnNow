@@ -9,9 +9,11 @@
  * 1. OWNS the logic for all user-initiated state changes and I/O orchestration.
  * 2. MUST encapsulate the `navigator.share` / clipboard fallback logic.
  * 3. DELEGATES all direct I/O to the `groupsRepository`.
- * @api-declaration
+* @api-declaration
  *   - `useGroupActions`: The exported hook.
- *   - `returns.handleAddParticipant`: Action to add a new managed participant.
+ *   - `returns.handleTurnAction`: Action to complete a turn.
+ *   - `returns.handleAdminCompleteTurn`: Action for an admin to complete a turn on behalf of another user.
+ *   - `returns.handleSkipTurn`: Action to skip the current turn.
  * @contract
  *   assertions:
  *     purity: mutates
@@ -145,7 +147,6 @@ export function useGroupActions({
     }
   }, [groupId, user, currentUserParticipant, isUserTurn, orderedParticipants]);
 
-  // --- THIS IS THE NEW FUNCTION ---
   const handleAdminCompleteTurn = useCallback(
     async (participantId: string) => {
       if (!groupId || !user) return;
@@ -172,6 +173,32 @@ export function useGroupActions({
     },
     [groupId, user],
   );
+
+  const handleSkipTurn = useCallback(async () => {
+    if (!groupId || !user || orderedParticipants.length === 0) return;
+
+    const participantToSkipId = orderedParticipants[0].id;
+    // --- DEBUG LOG ---
+    console.log(
+      `[Action] User '${user.uid}' is skipping turn for participant '${participantToSkipId}'`,
+    );
+    setIsSubmitting(true);
+    try {
+      await groupsRepository.skipTurnTransaction(
+        groupId,
+        user,
+        participantToSkipId,
+      );
+    } catch (error) {
+      console.error('User failed to skip turn:', error);
+      setFeedback({
+        message: 'Failed to skip the turn.',
+        severity: 'error',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [groupId, user, orderedParticipants]);
 
   const handleAddParticipant = useCallback(
     async (name: string) => {
@@ -242,18 +269,19 @@ export function useGroupActions({
     }
   }, [groupId, user, undoableAction]);
 
-  // --- THIS FUNCTION IS UPDATED ---
+
   const formatLogEntry = useCallback((log: LogEntry) => {
     switch (log.type) {
       case 'TURN_COMPLETED':
-        // Check if the person who took the action is different from the person whose turn it was.
         const byActor =
           log.actorUid !== log.participantId ? ` by ${log.actorName}` : '';
-        // --- DEBUG LOG ---
-        if (byActor) {
-          console.log(`[formatLogEntry] Detected admin action for log ID: ${log.participantId}`);
-        }
         return `${log.participantName}'s turn was completed${byActor}.`;
+      
+      // --- THIS IS THE NEW CASE ---
+      case 'TURN_SKIPPED':
+        return `${log.participantName} skipped their turn.`;
+      // --- END NEW CASE ---
+
       case 'COUNTS_RESET':
         return `All turn counts were reset by ${log.actorName}.`;
       case 'TURN_UNDONE':
@@ -268,7 +296,8 @@ export function useGroupActions({
     feedback,
     setFeedback,
     handleTurnAction,
-    handleAdminCompleteTurn, // <-- EXPORT THE NEW FUNCTION
+    handleAdminCompleteTurn,
+    handleSkipTurn,
     handleAddParticipant,
     handleRoleChange,
     handleRemoveParticipant,

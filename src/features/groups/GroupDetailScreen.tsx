@@ -78,6 +78,7 @@ export const GroupDetailScreen: FC = () => {
     resetDialog,
     deleteDialog,
     undoDialog,
+    skipDialog,
     addParticipantDialog,
     actions,
   } = useGroupDetail(groupId);
@@ -135,6 +136,7 @@ export const GroupDetailScreen: FC = () => {
         isParticipant={!!currentUserParticipant}
         onTurnAction={actions.handleTurnAction}
         onUndoClick={undoDialog.handleOpen}
+        onSkipClick={skipDialog.handleOpen} 
         onInviteClick={actions.handleGenericInvite}
         onAddParticipantClick={addParticipantDialog.handleOpen}
         isUserTurn={isUserTurn}
@@ -265,6 +267,26 @@ export const GroupDetailScreen: FC = () => {
             autoFocus
           >
             Confirm Undo
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={skipDialog.isOpen} onClose={skipDialog.handleClose}>
+        <DialogTitle>Skip Your Turn?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will move you to the bottom of the list, but your turn count
+            will not increase. This action will be logged. Are you sure?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={skipDialog.handleClose}>Cancel</Button>
+          <Button
+            onClick={skipDialog.handleConfirm}
+            variant="contained"
+            autoFocus
+          >
+            Confirm Skip
           </Button>
         </DialogActions>
       </Dialog>

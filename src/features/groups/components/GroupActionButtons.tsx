@@ -27,11 +27,13 @@ import CircularProgress from '@mui/material/CircularProgress';
 import ShareIcon from '@mui/icons-material/Share';
 import UndoIcon from '@mui/icons-material/Undo';
 import AddIcon from '@mui/icons-material/Add';
+import SkipNextIcon from '@mui/icons-material/SkipNext';
 import type { TurnCompletedLog } from '../../../types/group';
 
 interface GroupActionButtonsProps {
   onTurnAction: () => void;
-  onUndoClick: () => void;
+  onUndoClick: () => void;  
+  onSkipClick: () => void;
   onInviteClick: () => void;
   onAddParticipantClick: () => void;
   isUserTurn: boolean;
@@ -43,7 +45,8 @@ interface GroupActionButtonsProps {
 
 export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
   onTurnAction,
-  onUndoClick,
+  onUndoClick,  
+  onSkipClick,
   onInviteClick,
   onAddParticipantClick,
   isUserTurn,
@@ -60,67 +63,85 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
     <Box
       sx={{
         position: 'fixed',
-        bottom: 16,
-        left: '50%',
-        transform: 'translateX(-50%)',
+        bottom: 0,
+        left: 0,
+        right: 0,
         display: 'flex',
         alignItems: 'center',
-        gap: 1,
+        justifyContent: 'space-between',
+        p: 2,
+        // Adding a subtle gradient to lift the bar off the content
+        background: (theme) => `linear-gradient(to top, ${theme.palette.background.default} 70%, transparent)`,
       }}
     >
-      {/* Left-Side Buttons (Admin Only) */}
-      {isAdmin && (
-        <Fab
-          color="secondary"
-          aria-label="Invite to group"
-          onClick={onInviteClick}
-          disabled={isSubmitting}
-          size="medium"
-        >
-          <ShareIcon />
-        </Fab>
-      )}
-
-      {/* Center Button: Main Turn Action */}
-      <Fab
-        variant="extended"
-        color="primary"
-        onClick={onTurnAction}
-        disabled={isSubmitting}
-        sx={{
-          minWidth: '180px',
-        }}
-      >
-        {isSubmitting ? (
-          <CircularProgress size={24} color="inherit" />
-        ) : isUserTurn ? (
-          'Complete My Turn'
-        ) : (
-          'Take My Turn'
+      {/* --- LEFT WING --- */}
+      <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-start', gap: 1 }}>
+        {isAdmin && (
+          <Fab
+            color="secondary"
+            aria-label="Add Participant"
+            onClick={onAddParticipantClick}
+            disabled={isSubmitting}
+            size="medium"
+          >
+            <AddIcon />
+          </Fab>
         )}
-      </Fab>
+        {isUserTurn && (
+          <Fab
+            color="secondary"
+            aria-label="Skip turn"
+            onClick={onSkipClick}
+            disabled={isSubmitting}
+            size="medium"
+          >
+            <SkipNextIcon />
+          </Fab>
+        )}
+      </Box>
 
-      {/* Right-Side Buttons */}
-      {isAdmin && (
+      {/* --- CENTER ANCHOR --- */}
+      <Box>
+        <Fab
+          variant="extended"
+          color="primary"
+          onClick={onTurnAction}
+          disabled={isSubmitting}
+          sx={{ minWidth: '180px' }}
+        >
+          {isSubmitting ? (
+            <CircularProgress size={24} color="inherit" />
+          ) : isUserTurn ? (
+            'Complete My Turn'
+          ) : (
+            'Take My Turn'
+          )}
+        </Fab>
+      </Box>
+
+      {/* --- RIGHT WING --- */}
+      <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
         <Fab
           color="secondary"
-          aria-label="Add Participant"
-          onClick={onAddParticipantClick}
-          disabled={isSubmitting}
+          aria-label="Undo last turn"
+          disabled={!undoableAction || isSubmitting}
+          onClick={onUndoClick}
           size="medium"
         >
-          <AddIcon />
+          <UndoIcon />
         </Fab>
-      )}
-      <Fab
-        color="secondary"
-        aria-label="Undo last turn"
-        disabled={!undoableAction || isSubmitting}
-        onClick={onUndoClick}
-        size="medium"
-      >
-        <UndoIcon />
-      </Fab>
+        {isAdmin && (
+          <Fab
+            color="secondary"
+            aria-label="Invite to group"
+            onClick={onInviteClick}
+            disabled={isSubmitting}
+            size="medium"
+          >
+            <ShareIcon />
+          </Fab>
+        )}
+      </Box>
     </Box>
   );
 };
