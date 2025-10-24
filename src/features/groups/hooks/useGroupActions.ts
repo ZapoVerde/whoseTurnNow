@@ -145,6 +145,34 @@ export function useGroupActions({
     }
   }, [groupId, user, currentUserParticipant, isUserTurn, orderedParticipants]);
 
+  // --- THIS IS THE NEW FUNCTION ---
+  const handleAdminCompleteTurn = useCallback(
+    async (participantId: string) => {
+      if (!groupId || !user) return;
+      // --- DEBUG LOG ---
+      console.log(
+        `[AdminAction] Admin '${user.uid}' is completing turn for participant '${participantId}'`,
+      );
+      setIsSubmitting(true);
+      try {
+        await groupsRepository.completeTurnTransaction(
+          groupId,
+          user,
+          participantId,
+        );
+      } catch (error) {
+        console.error('Admin failed to complete turn for participant:', error);
+        setFeedback({
+          message: 'Failed to complete the turn.',
+          severity: 'error',
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [groupId, user],
+  );
+
   const handleAddParticipant = useCallback(
     async (name: string) => {
       if (!groupId) return;
@@ -214,11 +242,17 @@ export function useGroupActions({
     }
   }, [groupId, user, undoableAction]);
 
+  // --- THIS FUNCTION IS UPDATED ---
   const formatLogEntry = useCallback((log: LogEntry) => {
     switch (log.type) {
       case 'TURN_COMPLETED':
+        // Check if the person who took the action is different from the person whose turn it was.
         const byActor =
           log.actorUid !== log.participantId ? ` by ${log.actorName}` : '';
+        // --- DEBUG LOG ---
+        if (byActor) {
+          console.log(`[formatLogEntry] Detected admin action for log ID: ${log.participantId}`);
+        }
         return `${log.participantName}'s turn was completed${byActor}.`;
       case 'COUNTS_RESET':
         return `All turn counts were reset by ${log.actorName}.`;
@@ -234,6 +268,7 @@ export function useGroupActions({
     feedback,
     setFeedback,
     handleTurnAction,
+    handleAdminCompleteTurn, // <-- EXPORT THE NEW FUNCTION
     handleAddParticipant,
     handleRoleChange,
     handleRemoveParticipant,

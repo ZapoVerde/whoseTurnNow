@@ -182,9 +182,28 @@ export const GroupDetailScreen: FC = () => {
             <>
               {participantMenu.selectedParticipant.uid !== user?.uid && (
                 <>
+                  {/* --- THIS IS THE NEW MENU ITEM --- */}
+                  <MenuItem
+                    onClick={() => {
+                      // --- DEBUG LOG ---
+                      console.log(
+                        `[UI] Admin initiating turn completion for participant: ${participantMenu.selectedParticipant?.id}`,
+                      );
+                      actions.handleAdminCompleteTurn(
+                        participantMenu.selectedParticipant!.id,
+                      );
+                      participantMenu.handleClose();
+                    }}
+                  >
+                    Complete Turn
+                  </MenuItem>
+                  {/* --- END NEW MENU ITEM --- */}
+
                   {participantMenu.selectedParticipant.role === 'member' &&
                   participantMenu.selectedParticipant.uid !== null ? (
-                    <MenuItem onClick={() => actions.handleRoleChange('admin')}>
+                    <MenuItem
+                      onClick={() => actions.handleRoleChange('admin')}
+                    >
                       Promote to Admin
                     </MenuItem>
                   ) : participantMenu.selectedParticipant.role === 'admin' ? (
