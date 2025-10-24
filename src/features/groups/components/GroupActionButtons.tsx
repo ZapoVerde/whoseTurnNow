@@ -1,15 +1,14 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/components/GroupActionButtons.tsx
- * @stamp {"ts":"2025-10-23T08:00:00Z"}
+ * @stamp {"ts":"2025-10-24T07:55:00Z"}
  * @architectural-role UI Component
  * @description
- * Renders the fixed bottom Action Bar as a centered, horizontal group of
- * floating action buttons. It is fully accessible, providing descriptive labels
- * for all icon-only controls.
+ * Renders the fixed bottom Action Bar. It enforces visual hierarchy by applying
+ * the theme's accent color to the primary CTA and a muted color to secondary actions.
  * @core-principles
  * 1. IS a pure, presentational component for the application's core actions.
- * 2. MUST conditionally render admin-only controls based on the `isAdmin` prop.
- * 3. MUST provide `aria-label` attributes for all icon-only buttons.
+ * 2. MUST apply the accent color (`secondary`) to the main turn-taking button.
+ * 3. MUST apply the primary color to all other floating action buttons.
  * 4. DELEGATES all event handling to its parent via callbacks.
  * @api-declaration
  *   - default: The GroupActionButtons React functional component.
@@ -70,15 +69,15 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
         alignItems: 'center',
         justifyContent: 'space-between',
         p: 2,
-        // Adding a subtle gradient to lift the bar off the content
         background: (theme) => `linear-gradient(to top, ${theme.palette.background.default} 70%, transparent)`,
       }}
     >
       {/* --- LEFT WING --- */}
       <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-start', gap: 1 }}>
         {isAdmin && (
+          // --- THIS IS THE FIX: Changed from secondary to primary ---
           <Fab
-            color="secondary"
+            color="primary"
             aria-label="Add Participant"
             onClick={onAddParticipantClick}
             disabled={isSubmitting}
@@ -88,8 +87,9 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
           </Fab>
         )}
         {isUserTurn && (
+          // --- THIS IS THE FIX: Changed from secondary to primary ---
           <Fab
-            color="secondary"
+            color="primary"
             aria-label="Skip turn"
             onClick={onSkipClick}
             disabled={isSubmitting}
@@ -102,9 +102,10 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
 
       {/* --- CENTER ANCHOR --- */}
       <Box>
+        {/* --- THIS IS THE FIX: Changed from primary to secondary (accent) --- */}
         <Fab
           variant="extended"
-          color="primary"
+          color="secondary"
           onClick={onTurnAction}
           disabled={isSubmitting}
           sx={{ minWidth: '180px' }}
@@ -121,8 +122,9 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
 
       {/* --- RIGHT WING --- */}
       <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+        {/* --- THIS IS THE FIX: Changed from secondary to primary --- */}
         <Fab
-          color="secondary"
+          color="primary"
           aria-label="Undo last turn"
           disabled={!undoableAction || isSubmitting}
           onClick={onUndoClick}
@@ -131,8 +133,9 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
           <UndoIcon />
         </Fab>
         {isAdmin && (
+          // --- THIS IS THE FIX: Changed from secondary to primary ---
           <Fab
-            color="secondary"
+            color="primary"
             aria-label="Invite to group"
             onClick={onInviteClick}
             disabled={isSubmitting}

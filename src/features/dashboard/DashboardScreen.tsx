@@ -66,11 +66,11 @@ export const DashboardScreen: FC = () => {
 
   useAppBar({
     title: (
-      <Stack direction="row" spacing={1} alignItems="center">
+      <Stack direction="row" alignItems="center">
         <Typography variant="h6" component="div">
           Whose Turn Now
         </Typography>
-        <Typography variant="h6" sx={{ color: 'primary.main' }}>
+        <Typography variant="h6" sx={{ color: 'secondary.main', ml: 0.5 }}>
           ❓
         </Typography>        
       </Stack>
