@@ -4,27 +4,46 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // =====================================================================
-    // SECTION 1: CORE HELPER FUNCTIONS (UNCHANGED)
+    // SECTION 1: CORE HELPER FUNCTIONS
     // =====================================================================
 
     function isAuthenticated() { return request.auth != null; }
 
-    function requesterIsAdmin() {
-      return request.auth.uid in resource.data.adminUids;
+    function isMember(groupData) {
+      return request.auth.uid in groupData.participantUids;
     }
 
-    function requesterIsParentGroupAdmin(groupId) {
-        let groupData = get(/databases/$(database)/documents/groups/$(groupId)).data;
-        return request.auth.uid in groupData.adminUids;
+    function isAdmin(groupData) {
+      return request.auth.uid in groupData.adminUids;
     }
 
-    function isUserJoiningGroup() {
-      return !(request.auth.uid in resource.data.participantUids) && (request.auth.uid in request.resource.data.participantUids);
+    function isMemberOfParentGroup(groupId) {
+      let groupData = get(/databases/$(database)/documents/groups/$(groupId)).data;
+      return isMember(groupData);
     }
+    
+    // --- THIS IS A NEW, MORE PRECISE HELPER FUNCTION ---
+    // Checks if the user is a member before the change, but not after.
+    function isLeavingGroup() {
+      return isMember(resource.data) && !isMember(request.resource.data);
+    }
+    // --- END NEW FUNCTION ---
 
+    function isJoiningGroup() {
+      return !isMember(resource.data) && isMember(request.resource.data);
+    }
+    
     function lastAdminRuleIsSatisfied() {
+      // The group must have at least one admin after the change is made.
       return request.resource.data.adminUids.size() >= 1;
     }
+
+    // --- THIS IS ANOTHER NEW HELPER FUNCTION ---
+    // Ensures a non-admin is only changing fields related to the participant roster.
+    function isOnlyModifyingMembership() {
+      return request.writeFields.hasOnly(['participants', 'turnOrder', 'participantUids', 'adminUids']);
+    }
+    // --- END NEW FUNCTION ---
 
     function isValidNewGroup() {
       let group = request.resource.data;
@@ -37,13 +56,8 @@ service cloud.firestore {
           && group.adminUids.size() == 1;
     }
 
-    function isMemberOfParentGroup(groupId) {
-      let groupData = get(/databases/$(database)/documents/groups/$(groupId)).data;
-      return request.auth.uid in groupData.participantUids;
-    }
-
     // =====================================================================
-    // SECTION 2: COLLECTION-LEVEL RULES (CHANGED)
+    // SECTION 2: COLLECTION-LEVEL RULES
     // =====================================================================
 
     match /users/{userId} {
@@ -51,24 +65,26 @@ service cloud.firestore {
     }
 
     match /groups/{groupId} {
-      
-      //This change allows any user, including an unauthenticated visitor who has just clicked an invitation link, to perform a single, one-time read (`get`) of the group document.
-
-      //This is secure because the rule for establishing a real-time listener (`list`) remains unchanged and strictly enforced, allowing only authenticated members of the group to see live updates. This change directly enables the `InvitationScreen` to fetch the group's name and display a proper welcome message, resolving the "Could not load invitation details" error.
-      allow get: if true;
-
-      // 'list': Allows real-time listeners and queries. This remains
-      // strictly locked down to members of the group.
-      allow list: if isAuthenticated() && request.auth.uid in resource.data.participantUids;
-      
-      // All write rules remain unchanged
+      allow get, list: if isMemberOfParentGroup(groupId);
       allow create: if isAuthenticated() && isValidNewGroup();
-      allow update: if (requesterIsAdmin() && lastAdminRuleIsSatisfied()) || isUserJoiningGroup();
-      allow delete: if requesterIsParentGroupAdmin(groupId);
+
+      // --- THIS IS THE FINAL, CORRECTED RULE ---
+      // An update is now allowed if ANY of the following are true:
+      // 1. The user is an admin making a valid change.
+      // 2. A new user is joining the group.
+      // 3. An existing member is leaving the group (and they are not the last admin).
+      // 4. An existing member is performing a valid roster/turn action (like taking a turn).
+      allow update: if (isAdmin(resource.data) && lastAdminRuleIsSatisfied())
+                      || isJoiningGroup()
+                      || (isLeavingGroup() && lastAdminRuleIsSatisfied() && isOnlyModifyingMembership())
+                      || (isMember(resource.data) && isOnlyModifyingMembership());
+      // --- END FIX ---
+                      
+      allow delete: if isAdmin(get(/databases/$(database)/documents/groups/$(groupId)).data);
       
       match /turnLog/{logId} {
         allow read, create: if isMemberOfParentGroup(groupId);
-        allow update: if requesterIsParentGroupAdmin(groupId)
+        allow update: if isAdmin(get(/databases/$(database)/documents/groups/$(groupId)).data)
                       && request.resource.data.isUndone == true
                       && resource.data.isUndone == false;
         allow delete: if false;
