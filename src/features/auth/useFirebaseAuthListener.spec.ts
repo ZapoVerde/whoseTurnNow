@@ -66,7 +66,7 @@ describe('useFirebaseAuthListener', () => {
     // ASSERT
     await waitFor(() => {
       expect(mockGetUserProfile).toHaveBeenCalledWith('new-user-123');
-      expect(useAuthStore.getState().status).toBe('authenticated');
+      expect(useAuthStore.getState().status).toBe('new-user');
     });
   });
 

@@ -39,13 +39,15 @@ interface ParticipantListProps {
   ) => void;
   onInviteToClaim: (participantId: string) => void;
   isAdmin: boolean;
+  isUserTurn: boolean;
 }
 
 export const ParticipantList: FC<ParticipantListProps> = ({
   participants,
   onParticipantClick,
   onInviteToClaim,
-  isAdmin,
+  isAdmin,  
+  isUserTurn,
 }) => {
   const theme = useTheme();
 
@@ -56,7 +58,7 @@ export const ParticipantList: FC<ParticipantListProps> = ({
           key={participant.id}
           sx={{
             boxShadow:
-              index === 0
+              index === 0 && isUserTurn
                 ? `0 0 8px 2px ${theme.palette.secondary.main}`
                 : theme.shadows[1],
             border: `1px solid ${theme.palette.divider}`,

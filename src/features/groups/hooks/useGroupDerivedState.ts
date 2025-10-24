@@ -81,23 +81,21 @@ export function useGroupDerivedState(
   // ... (rest of the hook remains unchanged) ...
   const undoableAction = useMemo(() => {
     if (!user || !group || !turnLog) return null;
-
+  
     const completableLogs = turnLog.filter(
       (log): log is TurnCompletedLog & { id: string } =>
         log.type === 'TURN_COMPLETED' && !log.isUndone
     );
-
+  
     for (const log of completableLogs.slice(0, 3)) {
-      const isActor = user.uid === log.actorUid;
-      const subjectParticipant = group.participants.find(p => p.id === log.participantId);
-      const isSubject = !!subjectParticipant && user.uid === subjectParticipant.uid;
-
-      if (isAdmin || isActor || isSubject) {
+      // This logic is now simplified to align with the strict Firestore security rule.
+      // Only an admin can perform an undo operation.
+      if (isAdmin) {
         return log;
       }
     }
     return null;
-  }, [turnLog, user, group, isAdmin]);
+  }, [turnLog, group, isAdmin]);
 
   return {
     currentUserParticipant,

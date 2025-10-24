@@ -73,12 +73,7 @@ service cloud.firestore {
     }
 
     match /groups/{groupId} {
-      // --- THIS IS THE FIX ---
-      // Allow any authenticated user to GET (read a single document) or LIST (query).
-      // Security for writes is handled by the strict 'update' and 'create' rules below.
-      // This resolves the permission-denied error during the invitation flow's transaction.
       allow get, list: if isAuthenticated();
-      // --- END FIX ---
       
       allow create: if isAuthenticated() && isValidNewGroup();
 
@@ -89,17 +84,20 @@ service cloud.firestore {
                       
       allow delete: if isAdmin(get(/databases/$(database)/documents/groups/$(groupId)).data);
       
-      // Sub-collection rules remain strict, as they should.
       match /turnLog/{logId} {
-        allow read, create: if isMemberOfParentGroup(groupId);
+        // Allow any authenticated user to read the log, which fixes the initial listener error.
+        allow read: if isAuthenticated();
 
-        // The rule checks for admin status using the denormalized `_adminUids`
-        // map stored on the log entry itself (`resource.data`).
-        // This removes the `get()` call and resolves the transactional race condition.
+        // Allow a user to create a log entry if their UID is in the participant list
+        // being submitted with the new log. This avoids the 'get()' deadlock.
+        allow create: if request.auth.uid in request.resource.data._participantUids;
+
+        // Allow an admin to update a log entry for the Undo feature.
         allow update: if (request.auth.uid in resource.data._adminUids)
                       && request.resource.data.isUndone == true
-                      && resource.data.isUndone == false;
+                      && (!('isUndone' in resource.data) || resource.data.isUndone == false);
 
+        // Explicitly forbid deleting log entries.
         allow delete: if false;
       }
     }

@@ -31,7 +31,8 @@ This table breaks down the specific rules for each type of data in the Firestore
 | `update` | A group member **leaving** the group | The user is currently a member, the update removes their `uid` from the `participantUids` map, and this action does not violate the "Last Admin Rule". |
 | `delete` | An existing **admin** of the group | The user's role in the group's `participants` array must be `admin`. |
 | **Turn Log** (`/groups/{groupId}/turnLog/{logId}`) |
-| `read`, `create` | Any member of the group | The user must be authenticated, and their `uid` must be in the parent group's `participantUids` map. |
+| `read` | **Any authenticated user** | The user must be logged in. This is consistent with the parent group's public-read model. |
+| `create` | Any **member** of the group | The user must be authenticated, and their `uid` must be in the parent group's `participantUids` map. |
 | `update` | Any **admin** of the group | This action is only for the "Undo" feature. The update is only allowed if it sets the `isUndone` flag to `true`, and the user initiating the action is an admin of the parent group. |
 | `delete` | **No one** | Log entries are immutable and can never be deleted through the client application. |
 

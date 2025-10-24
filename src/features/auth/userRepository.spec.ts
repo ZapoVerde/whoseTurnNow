@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/auth/userRepository.spec.ts
- * @stamp {"ts":"2025-10-22T06:25:00Z"}
+ * @stamp {"ts":"2025-10-24T12:00:00Z"}
  * @test-target packages/whoseturnnow/src/features/auth/userRepository.ts
  * @description
  * Verifies the correctness of all user profile interactions, including
@@ -13,7 +13,7 @@
  *   assertions:
  *     purity: read-only # This test file asserts on the state of mocked modules.
  *     state_ownership: none
- *     external_io: none # Mocks MUST prevent any actual I/O.
+ *     external_io: none # Mocks MUST prevent any actual I/O. 
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -68,7 +68,8 @@ describe('userRepository', () => {
           { id: 'p-2', uid: 'other-user', role: 'member', turnCount: 1, nickname: 'Member' },
         ],
         turnOrder: ['p-1', 'p-2'],
-        participantUids: [uid, 'other-user'],
+        participantUids: { [uid]: true, 'other-user': true },
+        adminUids: { [uid]: true },
       };
       mockGetDocs.mockResolvedValue({
         docs: [{ data: () => blockingGroup }],
@@ -80,7 +81,8 @@ describe('userRepository', () => {
       // ASSERT
       expect(mockCollection).toHaveBeenCalledWith(db, 'groups');
       expect(mockQuery).toHaveBeenCalled();
-      expect(mockWhere).toHaveBeenCalledWith('participantUids', 'array-contains', uid);
+      // This assertion is now correct for a map-based query.
+      expect(mockWhere).toHaveBeenCalledWith(`participantUids.${uid}`, '==', true);
       expect(result).toBe('The Blocking Group');
     });
 
@@ -97,7 +99,8 @@ describe('userRepository', () => {
           { id: 'p-2', uid: 'other-admin', role: 'admin', turnCount: 1, nickname: 'Admin2' },
         ],
         turnOrder: ['p-1', 'p-2'],
-        participantUids: [uid, 'other-admin'],
+        participantUids: { [uid]: true, 'other-admin': true },
+        adminUids: { [uid]: true, 'other-admin': true },
       };
       mockGetDocs.mockResolvedValue({
         docs: [{ data: () => nonBlockingGroup }],
@@ -124,7 +127,8 @@ describe('userRepository', () => {
           { id: 'p-2', uid, role: 'member', turnCount: 1, nickname: 'Member' },
         ],
         turnOrder: ['p-1', 'p-2'],
-        participantUids: [uid, 'other-admin'],
+        participantUids: { [uid]: true, 'other-admin': true },
+        adminUids: { 'other-admin': true },
       };
       mockGetDocs.mockResolvedValue({
         docs: [{ data: () => nonBlockingGroup }],
@@ -160,7 +164,7 @@ describe('userRepository', () => {
 
       await userRepository.updateUserDisplayName(uid, newDisplayName);
 
-      expect(mockDoc).toHaveBeenCalledWith({}, 'users', uid);
+      expect(mockDoc).toHaveBeenCalledWith(db, 'users', uid);
       expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
       const updatePayload = mockUpdateDoc.mock.calls[0][1];
       expect(updatePayload).toEqual({ displayName: newDisplayName });
@@ -176,7 +180,7 @@ describe('userRepository', () => {
 
       await userRepository.deleteUserAccount();
 
-      expect(mockDoc).toHaveBeenCalledWith({}, 'users', mockUser.uid);
+      expect(mockDoc).toHaveBeenCalledWith(db, 'users', mockUser.uid);
       expect(mockDeleteDoc).toHaveBeenCalledTimes(1);
       expect(mockDeleteUser).toHaveBeenCalledTimes(1);
       expect(mockDeleteUser).toHaveBeenCalledWith(mockUser);
@@ -205,7 +209,7 @@ describe('userRepository', () => {
 
       const profile = await userRepository.getUserProfile('user-123');
 
-      expect(mockDoc).toHaveBeenCalledWith({}, 'users', 'user-123');
+      expect(mockDoc).toHaveBeenCalledWith(db, 'users', 'user-123');
       expect(mockGetDoc).toHaveBeenCalledTimes(1);
       expect(profile).toEqual(mockUserData);
     });
@@ -215,7 +219,7 @@ describe('userRepository', () => {
 
       const profile = await userRepository.getUserProfile('user-404');
 
-      expect(mockDoc).toHaveBeenCalledWith({}, 'users', 'user-404');
+      expect(mockDoc).toHaveBeenCalledWith(db, 'users', 'user-404');
       expect(mockGetDoc).toHaveBeenCalledTimes(1);
       expect(profile).toBeNull();
     });
@@ -232,7 +236,7 @@ describe('userRepository', () => {
 
       await userRepository.createUserProfile(newUser);
 
-      expect(mockDoc).toHaveBeenCalledWith({}, 'users', 'new-user-abc');
+      expect(mockDoc).toHaveBeenCalledWith(db, 'users', 'new-user-abc');
       expect(mockSetDoc).toHaveBeenCalledTimes(1);
       expect(mockSetDoc.mock.calls[0][1]).toEqual(newUser);
     });

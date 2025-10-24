@@ -17,7 +17,7 @@
  *   assertions:
  *     purity: read-only # This test file only reads from the store and asserts on its state.
  *     state_ownership: none # This test file does not own or manage any application state.
- *     external_io: none # This test file MUST NOT perform any network or file system I/O.
+ *     external_io: none # This test file MUST NOT perform any network or file system I/O. 
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';

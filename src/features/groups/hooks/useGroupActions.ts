@@ -31,6 +31,7 @@ import type {
   TurnCompletedLog,
   TurnParticipant,
 } from '../../../types/group';
+import { useGroupStore } from '../useGroupStore';
 
 interface GroupActionsProps {
   group: Group | null;
@@ -127,25 +128,48 @@ export function useGroupActions({
   );
 
   const handleTurnAction = useCallback(async () => {
-    if (!groupId || !user || !currentUserParticipant) return;
+    if (!groupId || !user || !currentUserParticipant || !group) return;
+
     const participantToMoveId = isUserTurn
       ? orderedParticipants[0].id
       : currentUserParticipant.id;
+
     if (!participantToMoveId) return;
-    setIsSubmitting(true);
+
+    // 1. Capture the current state for potential rollback.
+    const originalGroup = group;
+
+    // 2. Create the expected new state.
+    const newTurnOrder = [
+      ...originalGroup.turnOrder.filter((id) => id !== participantToMoveId),
+      participantToMoveId,
+    ];
+    const newParticipants = originalGroup.participants.map((p) =>
+      p.id === participantToMoveId ? { ...p, turnCount: p.turnCount + 1 } : p
+    );
+
+    // 3. Optimistically update the UI instantly.
+    useGroupStore.getState().setGroup({
+      ...originalGroup,
+      turnOrder: newTurnOrder,
+      participants: newParticipants,
+    });
+
+    // 4. Send the actual request to Firestore in the background.
     try {
       await groupsRepository.completeTurnTransaction(
         groupId,
         user,
-        participantToMoveId,
+        participantToMoveId
       );
     } catch (error) {
+      // 5. If it fails, roll back the UI and show an error.
       console.error('Failed to complete turn:', error);
       setFeedback({ message: 'Failed to complete turn.', severity: 'error' });
-    } finally {
-      setIsSubmitting(false);
+      // Revert to the original state.
+      useGroupStore.getState().setGroup(originalGroup);
     }
-  }, [groupId, user, currentUserParticipant, isUserTurn, orderedParticipants]);
+  }, [groupId, user, currentUserParticipant, group, isUserTurn, orderedParticipants]);
 
   const handleAdminCompleteTurn = useCallback(
     async (participantId: string) => {

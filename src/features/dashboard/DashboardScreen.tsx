@@ -75,9 +75,7 @@ export const DashboardScreen: FC = () => {
         </Typography>        
       </Stack>
     ),
-    // --- THIS IS FIX #1: Explicitly hide the back button ---
     showBackButton: false,
-    // --- END FIX ---
     actions: (
       <IconButton color="inherit" aria-label="Account settings" onClick={settingsMenu.handleOpen}>
         <MoreVertIcon />
@@ -114,14 +112,25 @@ export const DashboardScreen: FC = () => {
           </Typography>
         ) : (
           <Stack spacing={1}>
-            {groups.map((group) => (
-              <Card key={group.gid}>
-                <ListItem disablePadding>
-                  {/* --- THIS IS FIX #2: Enhance layout --- */}
-                  <ListItemButton 
-                    onClick={() => navigate(`/group/${group.gid}`)}
-                    sx={{ py: 1.5 }} // Increase vertical padding
-                  >
+            {groups.map((group) => {
+              const nextParticipantId = group.turnOrder?.[0];
+              const nextParticipant = group.participants.find(p => p.id === nextParticipantId);
+              const isMyTurn = nextParticipant?.uid === user?.uid;
+
+              return (
+              <Card 
+                key={group.gid}
+                sx={{
+                  boxShadow: isMyTurn
+                    ? (theme) => `0 0 8px 2px ${theme.palette.secondary.main}`
+                    : undefined,
+                }}
+              >
+            <ListItem disablePadding>
+              <ListItemButton 
+                onClick={() => navigate(`/group/${group.gid}`)}
+                sx={{ py: 1.5 }} // Increase vertical padding
+              >
                     <ListItemIcon>
                       <Typography variant="h5">{group.icon}</Typography>
                     </ListItemIcon>
@@ -132,10 +141,10 @@ export const DashboardScreen: FC = () => {
                       secondaryTypographyProps={{ variant: 'body1' }} // Make subtitle larger
                     />
                   </ListItemButton>
-                   {/* --- END FIX --- */}
                 </ListItem>
               </Card>
-            ))}
+              );
+            })}
           </Stack>
         )}
       </Box>

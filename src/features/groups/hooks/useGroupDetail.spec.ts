@@ -1,139 +1,165 @@
 /**
- * @file packages/whoseturnnow/src/features/groups/hooks/useGroupDetail.ts
- * @stamp {"ts":"2025-10-23T10:35:00Z"}
- * @architectural-role Orchestrator
+ * @file packages/whoseturnnow/src/features/groups/hooks/useGroupDetail.spec.ts
+ * @stamp {"ts":"2025-10-24T22:50:00Z"}
+ * @architectural-role Verification
+ * @test-target packages/whoseturnnow/src/features/groups/hooks/useGroupDetail.ts
+ *
  * @description
- * The primary "Conductor" hook for the Group Detail feature. It composes all
- * necessary data, state, and actions from various sources (stores and specialized
- * satellite hooks) into a single, comprehensive view model for the UI component.
- * @core-principles
- * 1. IS the single composition root for the feature's logic.
- * 2. ORCHESTRATES the view model by composing data from stores with logic from satellite hooks.
- * 3. DELEGATES all business logic calculations to the `useGroupDerivedState` hook.
- * 4. DELEGATES all action handling and I/O to the `useGroupActions` hook.
- * 5. MUST NOT contain its own business logic or direct I/O calls.
- * @api-declaration
- *   - default: The `useGroupDetail` hook function.
- *   - returns: A comprehensive view model object containing all data, derived
- *     state, and actions required by the `GroupDetailScreen` component.
+ * Verifies the orchestrator logic of the `useGroupDetail` hook. This suite ensures
+ * that the hook correctly subscribes to data stores, triggers data loading based on
+ * its lifecycle and dependencies (like `connectionMode`), and properly composes the
+ * final view model from its various sources.
+ *
+ * @criticality
+ * Critical (Reason: Core Business Logic Orchestration)
+ *
+ * @testing-layer Integration
+ *
  * @contract
  *   assertions:
- *     purity: mutates # This hook uses useEffect to orchestrate data loading.
- *     state_ownership: none # It reads from global stores but owns no global state slices.
- *     external_io: none # It delegates all I/O to other hooks and does not import from Firebase directly.
+ *     purity: read-only # Asserts on mock function calls and hook return values.
+ *     state_ownership: none
+ *     external_io: none # Mocks MUST prevent any actual I/O.
  */
 
-import { useEffect, useState, type MouseEvent } from 'react';
+import { renderHook, } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// --- Mocks ---
+vi.mock('react-router-dom', () => ({
+  useParams: vi.fn(),
+  useNavigate: vi.fn(),
+}));
+vi.mock('../useGroupStore');
+vi.mock('../../auth/useAuthStore');
+vi.mock('../../../shared/store/useAppStatusStore');
+vi.mock('./useGroupDerivedState');
+vi.mock('./useGroupActions');
+
+// --- Imports ---
+import { useGroupDetail } from './useGroupDetail';
 import { useGroupStore } from '../useGroupStore';
 import { useAuthStore } from '../../auth/useAuthStore';
-import { useMenuState } from './useMenuState';
-import { useDialogState } from './useDialogState';
+import { useAppStatusStore } from '../../../shared/store/useAppStatusStore';
 import { useGroupDerivedState } from './useGroupDerivedState';
 import { useGroupActions } from './useGroupActions';
-import type { TurnParticipant } from '../../../types/group';
 
-export function useGroupDetail(groupId: string | undefined) {
-  // 1. Get raw data from global stores
-  const user = useAuthStore((state) => state.user);
-  const { group, turnLog, isLoading, loadGroupAndLog, cleanup } = useGroupStore();
+// --- Test Setup ---
+const mockLoadGroupAndLog = vi.fn();
+const mockCleanup = vi.fn();
 
-  // 2. Delegate business logic to the "Brain" hook
-  const derivedState = useGroupDerivedState(group, user, turnLog);
+// Mock implementations for all composed hooks and stores
+vi.mocked(useAuthStore).mockReturnValue({ uid: 'test-user' } as any);
+vi.mocked(useGroupStore).mockReturnValue({
+  group: null,
+  turnLog: [],
+  isLoading: true,
+  loadGroupAndLog: mockLoadGroupAndLog,
+  cleanup: mockCleanup,
+});
+vi.mocked(useAppStatusStore).mockReturnValue('live');
+vi.mocked(useGroupDerivedState).mockReturnValue({
+  // Return a dummy object with the expected shape
+  currentUserParticipant: null,
+  orderedParticipants: [],
+  isAdmin: false,
+  isUserTurn: false,
+  isLastAdmin: false,
+  undoableAction: null,
+});
+vi.mocked(useGroupActions).mockReturnValue({
+  // Return a dummy object with the expected shape
+  isSubmitting: false,
+  feedback: null,
+  setFeedback: vi.fn(),
+  // Add other actions if they need to be tested for pass-through
+} as any);
 
-  // 3. Delegate action handlers to the "Hands" hook
-  const actions = useGroupActions({ groupId, user, ...derivedState });
+describe('useGroupDetail Hook', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-  // 4. Manage primitive UI state
-  const groupMenu = useMenuState();
-  const participantMenu = useMenuState();
-  const deleteDialog = useDialogState(actions.handleConfirmDelete);
-  const resetDialog = useDialogState(actions.handleConfirmReset);
-  const undoDialog = useDialogState(actions.handleConfirmUndo);
+  it('should call loadGroupAndLog on initial render with the correct groupId', () => {
+    // ARRANGE: The setup in the mock provides the initial state.
+    const groupId = 'group-123';
 
-  const [selectedParticipant, setSelectedParticipant] =
-    useState<TurnParticipant | null>(null);
+    // ACT
+    renderHook(() => useGroupDetail(groupId));
 
-  // 5. Handle side effects (data loading)
-  useEffect(() => {
-    if (groupId) {
-      loadGroupAndLog(groupId);
-    }
-    return () => cleanup();
-  }, [groupId, loadGroupAndLog, cleanup]);
+    // ASSERT
+    expect(mockLoadGroupAndLog).toHaveBeenCalledTimes(1);
+    expect(mockLoadGroupAndLog).toHaveBeenCalledWith(groupId);
+  });
 
-  // 6. Create composite handlers that combine UI state logic with actions
-  const handleOpenParticipantMenu = (
-    event: MouseEvent<HTMLElement>,
-    participant: TurnParticipant,
-  ) => {
-    setSelectedParticipant(participant);
-    participantMenu.handleOpen(event);
-  };
+  it('should call the cleanup function on unmount', () => {
+    // ARRANGE
+    const groupId = 'group-123';
+    const { unmount } = renderHook(() => useGroupDetail(groupId));
 
-  const handleCloseParticipantMenu = () => {
-    participantMenu.handleClose();
-    setTimeout(() => setSelectedParticipant(null), 150);
-  };
+    // ACT
+    unmount();
 
-  const handleRoleChange = (newRole: 'admin' | 'member') => {
-    if (selectedParticipant) {
-      actions.handleRoleChange(selectedParticipant.id, newRole);
-    }
-    handleCloseParticipantMenu();
-  };
+    // ASSERT
+    expect(mockCleanup).toHaveBeenCalledTimes(1);
+  });
 
-  const handleRemoveParticipant = () => {
-    if (selectedParticipant) {
-      actions.handleRemoveParticipant(selectedParticipant.id);
-    }
-    handleCloseParticipantMenu();
-  };
+  it('should not call loadGroupAndLog if groupId is undefined', () => {
+    // ARRANGE: Pass undefined for the groupId.
+    renderHook(() => useGroupDetail(undefined));
 
-  const handleCopyClaimLink = () => {
-    if (selectedParticipant) {
-      actions.handleCopyClaimLink(selectedParticipant.id);
-    }
-    handleCloseParticipantMenu();
-  };
+    // ASSERT
+    expect(mockLoadGroupAndLog).not.toHaveBeenCalled();
+  });
 
-  // 7. Assemble and return the final, clean view model for the component
-  return {
-    // Raw Data
-    group,
-    turnLog,
-    isLoading,
-    user,
+  it('should re-trigger data loading when connectionMode changes from degraded to live', () => {
+    // ARRANGE: Start in a 'degraded' state.
+    vi.mocked(useAppStatusStore).mockReturnValue('degraded');
+    const { rerender } = renderHook(() => useGroupDetail('group-123'));
 
-    // Derived State (from the "Brain")
-    ...derivedState,
+    // ASSERT PRE-CONDITION: It should not have loaded data in degraded mode.
+    expect(mockLoadGroupAndLog).not.toHaveBeenCalled();
 
-    // Actions & Action-related State (from the "Hands")
-    isSubmitting: actions.isSubmitting,
-    feedback: actions.feedback,
-    addParticipantForm: {
-      name: actions.newParticipantName,
-      setName: actions.setNewParticipantName,
-      handleSubmit: actions.handleAddParticipant,
-    },
+    // ACT: Simulate the app recovering and the store updating.
+    vi.mocked(useAppStatusStore).mockReturnValue('live');
+    rerender();
 
-    // Composed UI State
-    groupMenu,
-    participantMenu: {
-      ...participantMenu,
-      selectedParticipant,
-      handleOpen: handleOpenParticipantMenu,
-      handleClose: handleCloseParticipantMenu,
-    },
-    resetDialog,
-    deleteDialog,
-    undoDialog,
+    // ASSERT: Now that the connection is live, it should load the data.
+    expect(mockLoadGroupAndLog).toHaveBeenCalledTimes(1);
+    expect(mockLoadGroupAndLog).toHaveBeenCalledWith('group-123');
+  });
 
-    // Actions that need to be composed with local UI state
-    actions: {
-      ...actions,
-      handleRoleChange,
-      handleRemoveParticipant,
-      handleCopyClaimLink,
-    },
-  };
-}
+  it('should return the correctly composed view model', () => {
+    // ARRANGE: Set up rich mock return values for all dependencies.
+    const mockDerivedState = {
+      isAdmin: true,
+      isUserTurn: true,
+      orderedParticipants: [{ id: 'p1', name: 'Alice' }],
+    };
+    const mockActions = {
+      isSubmitting: false,
+      feedback: { message: 'Success!', severity: 'success' },
+    };
+
+    vi.mocked(useGroupStore).mockReturnValue({
+      group: { gid: 'group-123', name: 'Test Group' } as any,
+      turnLog: [{ id: 'log-1', type: 'TURN_COMPLETED' }] as any,
+      isLoading: false,
+      loadGroupAndLog: mockLoadGroupAndLog,
+      cleanup: mockCleanup,
+    });
+    vi.mocked(useGroupDerivedState).mockReturnValue(mockDerivedState as any);
+    vi.mocked(useGroupActions).mockReturnValue(mockActions as any);
+
+    // ACT
+    const { result } = renderHook(() => useGroupDetail('group-123'));
+
+    // ASSERT: Verify that the final returned object is a correct composition.
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.group?.name).toBe('Test Group');
+    expect(result.current.turnLog.length).toBe(1);
+    expect(result.current.isAdmin).toBe(true); // From useGroupDerivedState
+    expect(result.current.isUserTurn).toBe(true); // From useGroupDerivedState
+    expect(result.current.feedback?.message).toBe('Success!'); // From useGroupActions
+  });
+});

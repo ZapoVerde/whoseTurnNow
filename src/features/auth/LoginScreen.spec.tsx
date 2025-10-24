@@ -41,7 +41,7 @@ const mockCreateUserWithEmailAndPassword = vi.mocked(createUserWithEmailAndPassw
 const mockSignInWithPopup = vi.mocked(signInWithPopup);
 const mockSignInAnonymously = vi.mocked(signInAnonymously);
 
-// A dummy UserCredential object to satisfy the promise return type.
+// A dummy UserCredential object to satisfy the promise return type. 
 const mockUserCredential = {} as UserCredential;
 
 describe('LoginScreen', () => {

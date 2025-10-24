@@ -116,7 +116,7 @@ async function deleteUserAccount(): Promise<void> {
   try {
     // Step 2: Proceed with cleanup only if the gatekeeper check passes.
     const groupsRef = collection(db, 'groups');
-    const q = query(groupsRef, where('participantUids', 'array-contains', uid));
+    const q = query(groupsRef, where(`participantUids.${uid}`, '==', true));
     const userGroupsSnap = await getDocs(q);
 
     const removalPromises = userGroupsSnap.docs.map(async (groupDoc) => {

@@ -123,6 +123,7 @@ export const GroupDetailScreen: FC = () => {
           onParticipantClick={participantMenu.handleOpen}
           onInviteToClaim={actions.handleTargetedInvite}
           isAdmin={isAdmin}
+          isUserTurn={isUserTurn}
         />
         <TurnHistory turnLog={turnLog} formatLogEntry={actions.formatLogEntry} />
       </Box>

@@ -38,10 +38,11 @@ interface GroupState {
   _unsubscribeGroup: Unsubscribe | null;
   _unsubscribeLog: Unsubscribe | null;
   loadGroupAndLog: (groupId: string) => void;
+  setGroup: (group: Group) => void;
   cleanup: () => void;
 }
 
-const initialState: Omit<GroupState, 'loadGroupAndLog' | 'cleanup'> = {
+const initialState: Omit<GroupState, 'loadGroupAndLog' | 'cleanup' | 'setGroup'> = {
   group: null,
   turnLog: [],
   isLoading: true,
@@ -52,6 +53,11 @@ const initialState: Omit<GroupState, 'loadGroupAndLog' | 'cleanup'> = {
 export const useGroupStore = create<GroupState>()(
   immer((set, get) => ({
     ...initialState,
+
+    setGroup: (group) =>
+      set((state) => {
+        state.group = group;
+      }),
 
     loadGroupAndLog: (groupId) => {
       get().cleanup();
