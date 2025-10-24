@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/auth/LoginScreen.spec.tsx
- * @stamp {"ts":"2025-10-21T14:10:00Z"}
+ * @stamp {"ts":"2025-10-24T12:00:00Z"}
  * @test-target packages/whoseturnnow/src/features/auth/LoginScreen.tsx
  *
  * @description
@@ -24,7 +24,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import '@testing-library/jest-dom/vitest';
 
 // --- Imports ---
 import {
@@ -48,14 +47,11 @@ const mockUserCredential = {} as UserCredential;
 describe('LoginScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // FIX: Resolve with a mock UserCredential object to match the real function's signature.
     mockSignInAnonymously.mockResolvedValue(mockUserCredential);
     mockSignInWithPopup.mockResolvedValue(mockUserCredential);
     mockSignInWithEmailAndPassword.mockResolvedValue(mockUserCredential);
     mockCreateUserWithEmailAndPassword.mockResolvedValue(mockUserCredential);
   });
-
-  // ... (all test cases remain exactly the same as the previous version) ...
 
   it('should call signInAnonymously when "Continue Anonymously" is clicked', async () => {
     const user = userEvent.setup();

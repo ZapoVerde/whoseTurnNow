@@ -1,33 +1,42 @@
 /**
  * @file packages/whoseturnnow/vitest.setup.ts
- * @stamp {"ts":"2025-10-21T14:25:00Z"}
+ * @stamp {"ts":"2025-10-24T11:21:00Z"}
  * @architectural-role Configuration
- *
  * @description
  * This is the definitive test setup file for the @aianvil/whoseturnnow package.
  * It prepares the Vitest environment by completely mocking the external Firebase SDK
- * (app, auth, firestore) and other global dependencies like `uuid`. This ensures
- * that all tests run in a fully isolated, predictable, and offline environment. It
- * also extends the test runner's assertion library with DOM-specific matchers.
- *
+ * (app, auth, firestore), other global dependencies like `uuid`, and missing
+ * browser APIs like `IntersectionObserver`. This ensures that all tests run in a
+ * fully isolated, predictable, and offline environment. It also extends the
+ * test runner's assertion library with DOM-specific matchers.
  * @core-principles
- * 1. ENFORCES architectural boundaries by mocking all external services.
+ * 1. ENFORCES architectural boundaries by mocking all external services and browser APIs.
  * 2. MUST prevent the real Firebase SDK from being initialized during any test run.
- * 3. OWNS the responsibility for extending the test environment's capabilities (e.g.,
- *    with jest-dom matchers).
- *
+ * 3. OWNS the responsibility for extending the test environment's capabilities.
  * @api-declaration
  *   - None. This file has no exports; its effects are applied globally to the
  *     test environment by Vitest.
- *
  * @contract
  *   assertions:
- *     purity: mutates # Modifies the state of the Vitest module registry and global `expect`.
+ *     purity: mutates # Modifies the state of the Vitest module registry and global scope.
  *     state_ownership: none
  *     external_io: none
  */
 import { vi } from 'vitest';
-import '@testing-library/jest-dom/vitest';
+import '@testing-library/jest-dom';
+
+// --- MOCK BROWSER APIs (MISSING FROM JSDOM) ---
+
+// This is the fix for the `ReferenceError: IntersectionObserver is not defined`
+// error caused by the `emoji-picker-react` library.
+const MockIntersectionObserver = vi.fn(() => ({
+  disconnect: vi.fn(),
+  observe: vi.fn(),
+  takeRecords: vi.fn(),
+  unobserve: vi.fn(),
+}));
+
+vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
 
 // --- MOCK THE ENTIRE FIREBASE SDK (THE PROVEN PATTERN) ---
 

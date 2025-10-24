@@ -1,15 +1,15 @@
 /**
  * @file packages/whoseturnnow/src/features/dashboard/DashboardScreen.tsx
- * @stamp {"ts":"2025-10-23T11:25:00Z"}
+ * @stamp {"ts":"2025-10-24T08:16:00Z"}
  * @architectural-role UI Component, Orchestrator
  * @description
- * Renders the user's main dashboard. It is now "connection-aware," subscribing
- * to the `useAppStatusStore` to re-initialize its data listeners when the app
- * recovers from a degraded state.
+ * Renders the user's main dashboard. It explicitly configures the AppBar to
+ * hide the back button, establishing itself as a top-level screen. The layout
+ * has been enhanced for better readability and visual weight.
  * @core-principles
  * 1. IS the primary UI for displaying a user's collection of lists.
  * 2. MUST re-establish its data subscription when the connection mode transitions to 'live'.
- * 3. MUST provide accessible labels for all interactive controls.
+ * 3. MUST explicitly set `showBackButton: false` in its AppBar configuration.
  * @api-declaration
  *   - default: The DashboardScreen React functional component.
  * @contract
@@ -75,41 +75,31 @@ export const DashboardScreen: FC = () => {
         </Typography>        
       </Stack>
     ),
+    // --- THIS IS FIX #1: Explicitly hide the back button ---
+    showBackButton: false,
+    // --- END FIX ---
     actions: (
-      <IconButton color="inherit" aria-label="settings" onClick={settingsMenu.handleOpen}>
+      <IconButton color="inherit" aria-label="Account settings" onClick={settingsMenu.handleOpen}>
         <MoreVertIcon />
       </IconButton>
     ),
   });
 
-  // --- THIS IS THE FIX ---
-  // This effect now depends on the `connectionMode`. If the mode changes from
-  // 'degraded' to 'live', this effect will re-run, cleaning up the old (and likely dead)
-  // listener and establishing a new one.
   useEffect(() => {
-    // Do nothing if we don't have a user or if the connection is degraded.
     if (!user?.uid || connectionMode === 'degraded') {
-      // --- DEBUG LOG ---
-      console.log('[DashboardScreen] Skipping subscription.', { hasUser: !!user?.uid, connectionMode });
       return;
     }
 
     setIsLoading(true);
-    // --- DEBUG LOG ---
-    console.log('[DashboardScreen] Connection is LIVE. Establishing group subscription...');
     const unsubscribe = groupsRepository.getUserGroups(user.uid, (updatedGroups) => {
       setGroups(updatedGroups);
       setIsLoading(false);
     });
 
-    // This cleanup function will be called when the component unmounts, or
-    // before the effect runs again (e.g., on user or connectionMode change).
     return () => {
-      console.log('[DashboardScreen] Cleaning up group subscription.');
       unsubscribe();
     };
   }, [user?.uid, connectionMode]);
-  // --- END FIX ---
 
   return (
     <>
@@ -127,15 +117,22 @@ export const DashboardScreen: FC = () => {
             {groups.map((group) => (
               <Card key={group.gid}>
                 <ListItem disablePadding>
-                  <ListItemButton onClick={() => navigate(`/group/${group.gid}`)}>
+                  {/* --- THIS IS FIX #2: Enhance layout --- */}
+                  <ListItemButton 
+                    onClick={() => navigate(`/group/${group.gid}`)}
+                    sx={{ py: 1.5 }} // Increase vertical padding
+                  >
                     <ListItemIcon>
-                      <Typography variant="h6">{group.icon}</Typography>
+                      <Typography variant="h5">{group.icon}</Typography>
                     </ListItemIcon>
                     <ListItemText
                       primary={group.name}
                       secondary={`Up next: ${getNextParticipantName(group)}`}
+                      primaryTypographyProps={{ variant: 'h6' }} // Make title larger
+                      secondaryTypographyProps={{ variant: 'body1' }} // Make subtitle larger
                     />
                   </ListItemButton>
+                   {/* --- END FIX --- */}
                 </ListItem>
               </Card>
             ))}
@@ -143,7 +140,7 @@ export const DashboardScreen: FC = () => {
         )}
       </Box>
       <Fab
-        color="primary"
+        color="secondary"
         aria-label="add"
         sx={{
           position: 'fixed',

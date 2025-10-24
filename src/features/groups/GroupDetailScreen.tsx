@@ -1,23 +1,17 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/GroupDetailScreen.tsx
- * @stamp {"ts":"2025-10-23T08:15:00Z"}
+ * @stamp {"ts":"2025-10-24T11:40:00Z"}
  * @architectural-role UI Component
  * @description
- * The top-level UI component for the Group Detail feature. It consumes the
- * complete view model from the `useGroupDetail` hook and orchestrates the
- * rendering of all sub-components in a compliant, accessible layout.
+ * The top-level UI component for the Group Detail feature. It now configures the
+ * AppBar to display a large, centered title, making it the single source of
+ * truth for the group's name on this screen.
  * @core-principles
  * 1. IS a "dumb" component that primarily composes other dumb children.
  * 2. MUST delegate all business logic to its backing `useGroupDetail` hook.
- * 3. OWNS the side effect of configuring the global `AppBar`.
- * 4. MUST provide a semantic `<main>` landmark for its content.
+ * 3. MUST configure the AppBar to display a prominent, centered title.
  * @api-declaration
  *   - default: The GroupDetailScreen React functional component.
- *   - URL Parameters: Consumes `groupId` from the route path (`/group/:groupId`).
- *   - Global State: Subscribes to `useAuthStore` and `useGroupStore` via its
- *     `useGroupDetail` hook. Dispatches configuration to the `useAppBarStore`.
- *   - Side Effects: Orchestrates the entire feature's lifecycle, delegating
- *     data fetching and writes to its backing hooks.
  * @contract
  *   assertions:
  *     purity: pure
@@ -30,30 +24,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import Snackbar from '@mui/material/Snackbar';
-import Alert from '@mui/material/Alert';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import Stack from '@mui/material/Stack';
 import { useGroupDetail } from './hooks/useGroupDetail';
 import { useAppBar } from '../../shared/hooks/useAppBar';
-import { GroupHeader } from './components/GroupHeader';
 import { ParticipantList } from './components/ParticipantList';
 import { TurnHistory } from './components/TurnHistory';
 import { GroupActionButtons } from './components/GroupActionButtons';
-import {
-  ResetCountsConfirmationDialog,
-  DeleteGroupConfirmationDialog,
-} from './components/GroupManagementDialogs';
-import { AddParticipantDialog } from './components/AddParticipantDialog';
-import { EmojiPickerPopover } from '../../shared/components/EmojiPickerPopover';
+import { GroupManagementDialogs } from './components/GroupManagementDialogs';
 
 export const GroupDetailScreen: FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
@@ -96,7 +76,22 @@ export const GroupDetailScreen: FC = () => {
   }, [isAdmin, groupMenu.handleOpen]);
 
   useAppBar({
-    title: group?.name || 'Loading...',
+    title: (
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        justifyContent="center"
+        sx={{ width: '100%' }}
+      >
+        {/* --- THIS IS THE FIX --- */}
+        <Typography variant="h3">{group?.icon}</Typography>
+        <Typography variant="h4" component="div">
+          {group?.name || 'Loading...'}
+        </Typography>
+        {/* --- END FIX --- */}
+      </Stack>
+    ),
     showBackButton: true,
     actions: appBarActions,
   });
@@ -122,8 +117,7 @@ export const GroupDetailScreen: FC = () => {
 
   return (
     <>
-      <Box component="main" sx={{ pb: 12 }}>
-        <GroupHeader group={group} />
+      <Box component="main" sx={{ pb: 12, pt: 2 }}>
         <ParticipantList
           participants={orderedParticipants}
           onParticipantClick={participantMenu.handleOpen}
@@ -132,11 +126,12 @@ export const GroupDetailScreen: FC = () => {
         />
         <TurnHistory turnLog={turnLog} formatLogEntry={actions.formatLogEntry} />
       </Box>
+
       <GroupActionButtons
         isParticipant={!!currentUserParticipant}
         onTurnAction={actions.handleTurnAction}
         onUndoClick={undoDialog.handleOpen}
-        onSkipClick={skipDialog.handleOpen} 
+        onSkipClick={skipDialog.handleOpen}
         onInviteClick={actions.handleGenericInvite}
         onAddParticipantClick={addParticipantDialog.handleOpen}
         isUserTurn={isUserTurn}
@@ -145,165 +140,22 @@ export const GroupDetailScreen: FC = () => {
         isAdmin={isAdmin}
       />
 
-      <AddParticipantDialog
-        open={addParticipantDialog.isOpen}
-        onClose={addParticipantDialog.handleClose}
-        onConfirm={actions.handleAddParticipant}
-        isSubmitting={isSubmitting}
+      <GroupManagementDialogs
+        groupMenu={groupMenu}
+        participantMenu={participantMenu}
+        iconPickerMenu={iconPickerMenu}
+        resetDialog={resetDialog}
+        deleteDialog={deleteDialog}
+        undoDialog={undoDialog}
+        skipDialog={skipDialog}
+        addParticipantDialog={addParticipantDialog}
+        actions={actions}
+        feedback={feedback}
+        undoableAction={undoableAction}
+        user={user}
+        isAdmin={isAdmin}
+        isLastAdmin={isLastAdmin}
       />
-
-      <Menu
-        anchorEl={groupMenu.anchorEl}
-        open={groupMenu.isOpen}
-        onClose={groupMenu.handleClose}
-      >
-        <MenuItem
-          onClick={(e) => {
-            groupMenu.handleClose();
-            iconPickerMenu.handleOpen(e);
-          }}
-        >
-          Change Icon
-        </MenuItem>
-        <MenuItem onClick={resetDialog.handleOpen}>Reset All Turn Counts</MenuItem>
-        <MenuItem onClick={deleteDialog.handleOpen}>Delete Group</MenuItem>
-      </Menu>
-
-      {participantMenu.selectedParticipant && (
-        <Menu
-          anchorEl={participantMenu.anchorEl}
-          open={participantMenu.isOpen}
-          onClose={participantMenu.handleClose}
-        >
-          {participantMenu.selectedParticipant.uid === user?.uid &&
-            user.isAnonymous && (
-              <MenuItem onClick={actions.handleRecoveryLink}>
-                Get Recovery Link
-              </MenuItem>
-            )}
-          {isAdmin && (
-            <>
-              {participantMenu.selectedParticipant.uid !== user?.uid && (
-                <>
-                  <MenuItem
-                    onClick={() => {
-                      console.log(
-                        `[UI] Admin initiating turn completion for participant: ${participantMenu.selectedParticipant?.id}`,
-                      );
-                      actions.handleAdminCompleteTurn(
-                        participantMenu.selectedParticipant!.id,
-                      );
-                      participantMenu.handleClose();
-                    }}
-                  >
-                    Complete Turn
-                  </MenuItem>
-
-                  {participantMenu.selectedParticipant.role === 'member' &&
-                  participantMenu.selectedParticipant.uid !== null ? (
-                    <MenuItem
-                      onClick={() => actions.handleRoleChange('admin')}
-                    >
-                      Promote to Admin
-                    </MenuItem>
-                  ) : participantMenu.selectedParticipant.role === 'admin' ? (
-                    <MenuItem
-                      onClick={() => actions.handleRoleChange('member')}
-                      disabled={
-                        isLastAdmin &&
-                        participantMenu.selectedParticipant.role === 'admin'
-                      }
-                    >
-                      Demote to Member
-                    </MenuItem>
-                  ) : null}
-                  <MenuItem onClick={actions.handleRemoveParticipant}>
-                    Remove Participant
-                  </MenuItem>
-                </>
-              )}
-            </>
-          )}
-          {participantMenu.selectedParticipant.uid === user?.uid && (
-            <MenuItem onClick={actions.handleLeaveGroup} disabled={isLastAdmin}>
-              Leave Group
-            </MenuItem>
-          )}
-        </Menu>
-      )}
-
-      <EmojiPickerPopover
-        open={iconPickerMenu.isOpen}
-        anchorEl={iconPickerMenu.anchorEl}
-        onClose={iconPickerMenu.handleClose}
-        onEmojiSelect={actions.handleUpdateGroupIcon}
-      />
-
-      <ResetCountsConfirmationDialog
-        open={resetDialog.isOpen}
-        onClose={resetDialog.handleClose}
-        onConfirm={resetDialog.handleConfirm}
-      />
-      <DeleteGroupConfirmationDialog
-        open={deleteDialog.isOpen}
-        onClose={deleteDialog.handleClose}
-        onConfirm={deleteDialog.handleConfirm}
-      />
-
-      <Dialog open={undoDialog.isOpen} onClose={undoDialog.handleClose}>
-        <DialogTitle>Undo Last Turn?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This will reverse the turn taken by "
-            {undoableAction?.participantName}". This action will be logged. Are
-            you sure?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={undoDialog.handleClose}>Cancel</Button>
-          <Button
-            onClick={undoDialog.handleConfirm}
-            variant="contained"
-            autoFocus
-          >
-            Confirm Undo
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={skipDialog.isOpen} onClose={skipDialog.handleClose}>
-        <DialogTitle>Skip Your Turn?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This will move you to the bottom of the list, but your turn count
-            will not increase. This action will be logged. Are you sure?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={skipDialog.handleClose}>Cancel</Button>
-          <Button
-            onClick={skipDialog.handleConfirm}
-            variant="contained"
-            autoFocus
-          >
-            Confirm Skip
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={!!feedback}
-        autoHideDuration={4000}
-        onClose={() => actions.setFeedback(null)}
-      >
-        <Alert
-          onClose={() => actions.setFeedback(null)}
-          severity={feedback?.severity || 'info'}
-          sx={{ width: '100%' }}
-        >
-          {feedback?.message}
-        </Alert>
-      </Snackbar>
     </>
   );
 };

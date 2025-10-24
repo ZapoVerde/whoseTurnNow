@@ -1,15 +1,16 @@
 /**
  * @file packages/whoseturnnow/src/features/invitations/InvitationScreen.tsx
- * @stamp {"ts":"2025-10-24T08:05:00Z"}
+ * @stamp {"ts":"2025-10-24T09:30:00Z"}
  * @architectural-role Feature Entry Point, Orchestrator
  * @description
  * Manages the invitation flow. It now correctly waits for a user to be
  * fully authenticated before attempting to add them to a group, resolving a
- * permissions-related race condition for brand new users.
+ * permissions-related race condition by performing the write operation
+ * before any reads and then redirecting.
  * @core-principles
  * 1. OWNS the logic for parsing invitation context from the URL.
  * 2. MUST orchestrate the full authentication and user creation UI for invitees.
- * 3. MUST wait for the user's status to be 'authenticated' before attempting to join the group.
+ * 3. MUST successfully add the user to the group before navigating to the group detail page.
  * @api-declaration
  *   - default: The InvitationScreen React functional component.
  * @contract
@@ -41,9 +42,8 @@ export const InvitationScreen: FC = () => {
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // --- THIS IS THE FIX ---
-  // The logic has been consolidated into a single useEffect hook.
-  // It no longer attempts to fetch group data before authentication.
+  // This single, consolidated effect is the core of the solution.
+  // It waits for authentication to be complete before attempting any action.
   useEffect(() => {
     // 1. Wait until the user is fully authenticated and we have a groupId.
     if (status !== 'authenticated' || !user || !groupId || isJoining) {
@@ -54,19 +54,19 @@ export const InvitationScreen: FC = () => {
       setIsJoining(true);
       setError(null);
       try {
-        // 2. Perform the write operation FIRST.
+        // Step 1: Perform the WRITE operation first. This makes the user a member.
         if (participantId) {
           await groupsRepository.claimPlaceholder(groupId, participantId, user);
         } else {
           await groupsRepository.joinGroupAsNewParticipant(groupId, user);
         }
-        // 3. On success, redirect. The destination screen will handle fetching data.
+        // Step 2: On success, redirect. The destination screen is responsible for all reads.
         navigate(`/group/${groupId}`, { replace: true });
       } catch (err: any) {
-        // This catch block will now correctly handle errors from the join operation itself.
+        // This catch block will now correctly handle errors from the join operation itself,
+        // such as trying to claim an already-claimed spot.
         setError(
-          err.message ||
-            'Could not join the group. The link may be invalid or you may already be a member.',
+          err.message || 'Could not join the group. The link may be invalid.',
         );
       } finally {
         setIsJoining(false);
@@ -75,7 +75,6 @@ export const InvitationScreen: FC = () => {
 
     joinGroup();
   }, [status, user, groupId, participantId, navigate, isJoining]);
-  // --- END FIX ---
 
   if (error) {
     return (
@@ -87,8 +86,7 @@ export const InvitationScreen: FC = () => {
       </Container>
     );
   }
-  
-  // Show a generic loading spinner while waiting for auth state to resolve.
+
   if (status === 'initializing') {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -96,8 +94,8 @@ export const InvitationScreen: FC = () => {
       </Box>
     );
   }
-  
-  // Funnel unauthenticated users to the login screen.
+
+  // Funnel unauthenticated users to the login screen with a generic message.
   if (status === 'unauthenticated') {
     return (
       <Container component="main" maxWidth="xs" sx={{ mt: 4, textAlign: 'center' }}>
@@ -123,8 +121,8 @@ export const InvitationScreen: FC = () => {
       </Container>
     );
   }
-  
-  // This view is shown after auth is complete but before the join operation finishes.
+
+  // This view is shown while the join operation is in progress after authentication is complete.
   return (
     <Box
       sx={{
@@ -136,9 +134,7 @@ export const InvitationScreen: FC = () => {
       }}
     >
       <CircularProgress />
-      <Typography sx={{ mt: 2 }}>
-        Joining list...
-      </Typography>
+      <Typography sx={{ mt: 2 }}>Joining list...</Typography>
     </Box>
   );
 };

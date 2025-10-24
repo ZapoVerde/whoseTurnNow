@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/invitations/InvitationScreen.spec.tsx
- * @stamp {"ts":"2025-10-23T10:40:00Z"}
+ * @stamp {"ts":"2025-10-24T10:40:00Z"}
  * @test-target packages/whoseturnnow/src/features/invitations/InvitationScreen.tsx
  * @description
  * Verifies the end-to-end invitation acceptance flow, ensuring users are
@@ -17,7 +17,6 @@
 
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import '@testing-library/jest-dom/vitest';
 import type { Mock } from 'vitest';
 
 // --- Mocks ---
@@ -31,17 +30,19 @@ vi.mock('react-router-dom', async () => {
   };
 });
 vi.mock('../auth/useAuthStore');
-// --- FIX: Update the mock path ---
 vi.mock('../groups/repository');
 vi.mock('../auth/LoginScreen', () => ({
   LoginScreen: vi.fn(() => <div>Login Screen Mock</div>),
 }));
+vi.mock('../auth/NewUserHandshake', () => ({
+  NewUserHandshake: vi.fn(() => <div>New User Handshake Mock</div>),
+}));
+
 
 // --- Imports ---
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { InvitationScreen } from './InvitationScreen';
 import { useAuthStore } from '../auth/useAuthStore';
-// --- FIX: Import the unified repository object ---
 import { groupsRepository } from '../groups/repository';
 import type { AppUser } from '../auth/useAuthStore';
 import type { Group } from '../../types/group';
@@ -50,12 +51,13 @@ import type { Group } from '../../types/group';
 const mockUseParams = useParams as Mock;
 const mockUseSearchParams = useSearchParams as Mock;
 const mockUseNavigate = useNavigate as Mock;
-const mockUseAuthStore = useAuthStore as Mock;
+// THIS IS THE FIX: Use a double cast to 'unknown' then 'Mock' for type safety.
+const mockUseAuthStore = useAuthStore as unknown as Mock;
 
-// --- FIX: Get typed mocks from the repository object ---
-const mockJoinGroup = vi.mocked(groupsRepository.joinGroupAsNewParticipant);
-const mockClaimPlaceholder = vi.mocked(groupsRepository.claimPlaceholder);
-const mockGetGroupOnce = vi.mocked(groupsRepository.getGroupOnce);
+const mockJoinGroup = vi.spyOn(groupsRepository, 'joinGroupAsNewParticipant');
+const mockClaimPlaceholder = vi.spyOn(groupsRepository, 'claimPlaceholder');
+const mockGetGroupOnce = vi.spyOn(groupsRepository, 'getGroupOnce');
+
 
 const mockUser: AppUser = {
   uid: 'test-user-123',
@@ -80,10 +82,7 @@ describe('InvitationScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseNavigate.mockReturnValue(mockNavigateFn);
-
-    // --- FIX: Mock getGroupOnce with a resolved promise ---
     mockGetGroupOnce.mockResolvedValue(mockGroupData);
-
     mockJoinGroup.mockResolvedValue(undefined);
     mockClaimPlaceholder.mockResolvedValue(undefined);
   });
