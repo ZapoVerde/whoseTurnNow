@@ -87,10 +87,6 @@ export const ParticipantList: FC<ParticipantListProps> = ({
                 size="small"
                 color="secondary"
                 onClick={(e) => {
-                  // --- THIS IS THE FIX ---
-                  // This line stops the click from "bubbling up" to the
-                  // parent ListItemButton, ensuring only this chip's
-                  // action is fired.
                   e.stopPropagation();
                   onInviteToClaim(participant.id);
                 }}

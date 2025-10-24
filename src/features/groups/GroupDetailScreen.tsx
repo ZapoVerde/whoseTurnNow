@@ -125,13 +125,11 @@ export const GroupDetailScreen: FC = () => {
           participants={orderedParticipants}
           onParticipantClick={participantMenu.handleOpen}
           onInviteToClaim={actions.handleTargetedInvite}
+          isAdmin={isAdmin}
         />
         <TurnHistory turnLog={turnLog} formatLogEntry={actions.formatLogEntry} />
       </Box>
 
-      {/* --- THIS IS THE FIX --- */}
-      {/* The onAddParticipantClick prop is now correctly wired to the */}
-      {/* dialog's open handler, passing the "wiring" to the child component. */}
       <GroupActionButtons
         isParticipant={!!currentUserParticipant}
         onTurnAction={actions.handleTurnAction}
@@ -143,8 +141,6 @@ export const GroupDetailScreen: FC = () => {
         undoableAction={undoableAction}
         isAdmin={isAdmin}
       />
-
-      {/* --- The old, standalone FAB has been removed. --- */}
 
       <AddParticipantDialog
         open={addParticipantDialog.isOpen}

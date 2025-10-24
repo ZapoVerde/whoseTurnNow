@@ -1,3 +1,4 @@
+// ----- packages/whoseturnnow/src/features/groups/hooks/useGroupDetail.ts -----
 /**
  * @file packages/whoseturnnow/src/features/groups/hooks/useGroupDetail.ts
  * @stamp {"ts":"2025-10-23T07:15:00Z"}
@@ -5,8 +6,7 @@
  * @description
  * The primary "Conductor" hook for the Group Detail feature. It composes all
  * necessary data, state, and actions from various sources into a single,
-- * comprehensive view model for the UI component.
-+ * comprehensive view model, including managing the state for all dialogs.
+ * comprehensive view model, including managing the state for all dialogs.
  * @core-principles
  * 1. IS the single composition root for the feature's logic.
  * 2. ORCHESTRATES the view model by composing data from stores with logic from satellite hooks.
@@ -50,7 +50,6 @@ export function useGroupDetail(groupId: string | undefined) {
   const resetDialog = useDialogState(actions.handleConfirmReset);
   const undoDialog = useDialogState(actions.handleConfirmUndo);
   
-  // New dialog state management
   const addParticipantDialog = useDialogState(async (name?: string) => {
     if (typeof name === 'string') {
       await actions.handleAddParticipant(name);
@@ -97,13 +96,10 @@ export function useGroupDetail(groupId: string | undefined) {
     handleCloseParticipantMenu();
   };
   
-  const handleTargetedInvite = () => {
-    if (selectedParticipant) {
-      actions.handleTargetedInvite(selectedParticipant.id);
-    }
-    handleCloseParticipantMenu();
-  };
-
+  // --- THIS IS THE FIX ---
+  // The incorrect, redundant `handleTargetedInvite` function has been removed.
+  // The `actions` object from `useGroupActions` will now pass through unchanged.
+  
   const handleUpdateGroupIcon = (newIcon: string) => {
     actions.handleUpdateGroupIcon(newIcon);
   };
@@ -139,10 +135,9 @@ export function useGroupDetail(groupId: string | undefined) {
 
     // Actions that need to be composed with local UI state
     actions: {
-      ...actions,
+      ...actions, // The correct `handleTargetedInvite` is now passed through from here
       handleRoleChange,
       handleRemoveParticipant,
-      handleTargetedInvite,
       handleUpdateGroupIcon,
     },
   };
