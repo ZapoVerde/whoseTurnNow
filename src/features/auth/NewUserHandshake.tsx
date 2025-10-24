@@ -3,30 +3,30 @@
  * @architectural-role UI Component
  * @description
  * A dedicated screen that captures a new user's display name immediately after their
- * account is created. This is the "First-Time Handshake" that ensures all users
- * have a non-null display name before proceeding into the application.
+ * account is created. Its layout is compliant with the Zero-Taste Standard.
  * @core-principles
  * 1. IS the single entry point for all new users after initial authentication.
  * 2. OWNS the UI and logic for creating the user's profile document in Firestore.
  * 3. MUST transition the global auth state from 'new-user' to 'authenticated' upon success.
  * @api-declaration
  *   - default: The NewUserHandshake React functional component.
+ *   - Props: None. This is a self-contained feature screen.
+ *   - Side Effects: Creates a user profile via the `userRepository` and updates
+ *     the global `useAuthStore` upon successful submission.
  * @contract
  *   assertions:
- *     purity: mutates # This component manages its own form state and has side effects.
- *     state_ownership: [displayName, isSubmitting] # It owns the local form state.
- *     external_io: firestore # It calls the userRepository to create a document.
+ *     purity: mutates
+ *     state_ownership: [displayName, isSubmitting]
+ *     external_io: firestore
  */
 
 import React, { useState } from 'react';
-import { Box, Button, CircularProgress, Container, TextField, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, Container, TextField, Typography, Stack } from '@mui/material';
 import { useAuthStore } from './useAuthStore';
 import { userRepository } from './userRepository';
 
 export const NewUserHandshake: React.FC = () => {
   const user = useAuthStore((state) => state.user);
-  // --- THIS IS THE FIX (Part 1) ---
-  // We only need the `setAuthenticated` action now.
   const { setAuthenticated } = useAuthStore();
   const [displayName, setDisplayName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,12 +42,7 @@ export const NewUserHandshake: React.FC = () => {
       const newUserProfile = { ...user, displayName: displayName.trim() };
       await userRepository.createUserProfile(newUserProfile);
       
-      // --- THIS IS THE FIX (Part 2) ---
-      // Call the single, atomic `setAuthenticated` action. This correctly
-      // updates the user object and sets the status to 'authenticated',
-      // completing the login flow.
       setAuthenticated(newUserProfile);
-      // --- END FIX ---
     } catch (error) {
       console.error("Failed to create user profile:", error);
     } finally {
@@ -57,26 +52,30 @@ export const NewUserHandshake: React.FC = () => {
 
   return (
     <Container component="main" maxWidth="xs">
-      <Box sx={{ mt: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      {/* The root Box has been replaced with a Stack. */}
+      {/* All manual margins on children have been removed and are now controlled by the `spacing` prop. */}
+      <Stack sx={{ mt: 8, alignItems: 'center' }} spacing={2}>
         <Typography component="h1" variant="h5">Welcome!</Typography>
-        <Typography sx={{ mt: 1, mb: 3 }} color="text.secondary">
+        <Typography color="text.secondary">
           What should we call you?
         </Typography>
         <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
-          <TextField
-            required
-            fullWidth
-            autoFocus
-            label="Your Name"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            disabled={isSubmitting}
-          />
-          <Button type="submit" fullWidth variant="contained" sx={{ mt: 2 }} disabled={isSubmitting || !displayName.trim()}>
-            {isSubmitting ? <CircularProgress size={24} /> : "Let's Go"}
-          </Button>
+          <Stack spacing={2}>
+            <TextField
+              required
+              fullWidth
+              autoFocus
+              label="Your Name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              disabled={isSubmitting}
+            />
+            <Button type="submit" fullWidth variant="contained" disabled={isSubmitting || !displayName.trim()}>
+              {isSubmitting ? <CircularProgress size={24} /> : "Let's Go"}
+            </Button>
+          </Stack>
         </Box>
-      </Box>
+      </Stack>
     </Container>
   );
 };

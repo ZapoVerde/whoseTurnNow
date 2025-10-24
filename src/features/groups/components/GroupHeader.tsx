@@ -4,12 +4,12 @@
  * @architectural-role UI Component
  * @description
  * A pure, presentational component responsible for displaying the main group
- * header, including its icon and name. All actions are handled by the global
- * AppBar, which is controlled by the parent screen.
+ * header. Its layout is managed by a Stack primitive to ensure theme-compliant
+ * spacing and alignment.
  * @core-principles
  * 1. IS a pure, presentational ("dumb") component.
  * 2. MUST render UI based solely on the props it receives.
- * 3. MUST NOT contain any of its own interactive elements like buttons or menus.
+ * 3. MUST use a `<Stack>` to manage the layout of its internal elements.
  * @api-declaration
  *   - default: The GroupHeader React functional component.
  * @contract
@@ -20,8 +20,8 @@
  */
 
 import { type FC } from 'react';
-import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import Stack from '@mui/material/Stack';
 import type { Group } from '../../../types/group';
 
 interface GroupHeaderProps {
@@ -30,22 +30,17 @@ interface GroupHeaderProps {
 
 export const GroupHeader: FC<GroupHeaderProps> = ({ group }) => {
   return (
-    <Box
-      sx={{
-        mt: 4,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-      }}
+  <Stack
+      direction="row"
+      spacing={2}
+      justifyContent="center"
+      alignItems="center"
+      sx={{ mt: 4 }}
     >
       <Typography variant="h2">{group.icon}</Typography>
-      <Typography variant="h4" component="h1" sx={{ ml: 2 }}>
+      <Typography variant="h4" component="h1">
         {group.name}
       </Typography>
-      {/* --- THIS IS THE FIX --- */}
-      {/* The redundant IconButton has been completely removed from this component. */}
-      {/* The global AppBar is now the single source of truth for this action. */}
-    </Box>
+    </Stack>
   );
 };

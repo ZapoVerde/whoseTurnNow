@@ -5,8 +5,8 @@
  *
  * @description
  * Renders the primary user interface for all authentication methods, including
- * email/password, Google sign-in, and anonymous sessions. It serves as the
- * feature entry point for all unauthenticated users.
+ * email/password, Google sign-in, and anonymous sessions. Its layout is
+ * constructed in compliance with the Zero-Taste Layout Standard.
  *
  * @core-principles
  * 1. IS the feature entry point for all unauthenticated users.
@@ -14,13 +14,16 @@
  * 3. DELEGATES all authentication logic to the external Firebase Auth service.
  *
  * @api-declaration
- *   - `LoginScreen`: The exported React functional component.
+ *   - default: The LoginScreen React functional component.
+ *   - Props: None. This is a self-contained feature screen.
+ *   - Side Effects: Initiates authentication requests to the external Firebase
+ *     Auth service upon user interaction.
  *
  * @contract
  *   assertions:
- *     purity: mutates # This component manages internal UI state and has side effects.
- *     state_ownership: none # It triggers auth changes but does not own global state.
- *     external_io: https_apis # It directly calls Firebase Authentication services.
+ *     purity: mutates
+ *     state_ownership: [tab, email, password, isSubmitting, error]
+ *     external_io: https_apis
  */
 
 import React, { useState, type FC, type SyntheticEvent } from 'react';
@@ -88,27 +91,23 @@ export const LoginScreen: FC = () => {
 
   return (
     <Container component="main" maxWidth="xs">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
+      {/* The outer Box is replaced with a Stack to manage vertical spacing. */}
+      {/* All hardcoded margins (`mt`, `my`) are removed from the children. */}
+      <Stack sx={{ mt: 8, alignItems: 'center' }} spacing={2}>
         <Typography component="h1" variant="h5">
           Whose Turn Now
         </Typography>
 
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', width: '100%', mt: 2 }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', width: '100%' }}>
           <Tabs value={tab} onChange={handleTabChange} variant="fullWidth">
             <Tab label="Log In" value="login" />
             <Tab label="Sign Up" value="signup" />
           </Tabs>
         </Box>
 
-        <Box component="form" onSubmit={handleEmailPasswordSubmit} sx={{ width: '100%', mt: 1 }}>
-          <Stack spacing={2} sx={{ mt: 2 }}>
+        <Box component="form" onSubmit={handleEmailPasswordSubmit} sx={{ width: '100%' }}>
+          {/* An inner Stack is used for the form fields. */}
+          <Stack spacing={2}>
             <TextField
               required
               fullWidth
@@ -144,8 +143,8 @@ export const LoginScreen: FC = () => {
           </Stack>
         </Box>
 
-        <Divider sx={{ width: '100%', my: 2 }}>Or</Divider>
-
+        <Divider sx={{ width: '100%' }}>Or</Divider>
+        {/* Another Stack for the social/anonymous login buttons. */}
         <Stack spacing={2} sx={{ width: '100%' }}>
           <Button
             fullWidth
@@ -167,11 +166,11 @@ export const LoginScreen: FC = () => {
         </Stack>
 
         {error && (
-          <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
+          <Alert severity="error" sx={{ width: '100%' }}>
             {error}
           </Alert>
         )}
-      </Box>
+      </Stack>
     </Container>
   );
 };

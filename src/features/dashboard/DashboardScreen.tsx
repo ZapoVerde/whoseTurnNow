@@ -4,13 +4,24 @@
  * @architectural-role UI Component, Orchestrator
  * @description
  * Renders the user's main dashboard. It fetches and displays the user's lists
- * and provides the primary UI for creating new lists and navigating to settings.
+ * and provides the primary UI for creating new lists and navigating to settings,
+ * while adhering to all accessibility and theming standards.
  * @core-principles
  * 1. IS the primary UI for displaying a user's collection of lists.
  * 2. MUST declaratively configure the global AppBar for its context.
- * 3. DELEGATES all data fetching to the `groupsRepository` module.
+ * 3. MUST provide accessible labels for all interactive controls.
  * @api-declaration
  *   - default: The DashboardScreen React functional component.
+ *   - Props: None. This component is a route-level entry point.
+ *   - Global State: Subscribes to `useAuthStore` to get the current user's UID for
+ *     data fetching. It also dispatches configuration to the `useAppBarStore` to
+ *     set the screen's title and actions.
+ *   - Side Effects:
+ *     - Fetches the user's groups by establishing a real-time listener via the
+ *       `groupsRepository` on mount.
+ *     - Triggers browser navigation to the `/group/:groupId` or `/settings`
+ *       routes upon user interaction.
+ *     - Manages the visibility of the `CreateListDialog` component.
  * @contract
  *   assertions:
  *     purity: mutates
@@ -42,9 +53,6 @@ import { CreateListDialog } from '../groups/CreateListDialog';
 import { useAppBar } from '../../shared/hooks/useAppBar';
 import { useMenuState } from '../groups/hooks/useMenuState';
 
-// --- THIS IS THE FIX (Part 1) ---
-// The business logic is extracted into a pure helper function.
-// This separates the calculation from the rendering.
 const getNextParticipantName = (group: Group): string => {
   if (!group.turnOrder || group.turnOrder.length === 0) {
     return 'No one is in the list';
@@ -55,7 +63,6 @@ const getNextParticipantName = (group: Group): string => {
   );
   return nextParticipant?.nickname || 'Unknown participant';
 };
-// --- END FIX ---
 
 export const DashboardScreen: FC = () => {
   const navigate = useNavigate();
@@ -71,9 +78,10 @@ export const DashboardScreen: FC = () => {
         <Typography variant="h6" component="div">
           Whose Turn Now
         </Typography>
-        <Typography variant="h6" sx={{ color: 'error.main' }}>
+        {/* The color is changed from 'error.main' to 'primary.main' for correct semantic theming. */}
+        <Typography variant="h6" sx={{ color: 'primary.main' }}>
           ❓
-        </Typography>        
+        </Typography>
       </Stack>
     ),
     actions: (
@@ -115,13 +123,10 @@ export const DashboardScreen: FC = () => {
                     <ListItemIcon>
                       <Typography variant="h6">{group.icon}</Typography>
                     </ListItemIcon>
-                    {/* --- THIS IS THE FIX (Part 2) --- */}
-                    {/* The JSX now only calls the helper function, making it cleaner. */}
                     <ListItemText
                       primary={group.name}
                       secondary={`Up next: ${getNextParticipantName(group)}`}
                     />
-                    {/* --- END FIX --- */}
                   </ListItemButton>
                 </ListItem>
               </Card>

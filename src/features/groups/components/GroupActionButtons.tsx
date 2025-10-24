@@ -4,14 +4,13 @@
  * @architectural-role UI Component
  * @description
  * Renders the fixed bottom Action Bar as a centered, horizontal group of
- * floating action buttons. The layout and visibility of the buttons are
- * context-aware based on the user's role.
+ * floating action buttons. It is fully accessible, providing descriptive labels
+ * for all icon-only controls.
  * @core-principles
  * 1. IS a pure, presentational component for the application's core actions.
- * 2. MUST render a single, centered group of floating action buttons.
- * 3. MUST conditionally render the "Invite" and "Add Participant" buttons based on the `isAdmin` prop.
- * 4. MUST apply distinct colors to differentiate the primary action from secondary actions.
- * 5. DELEGATES all event handling to its parent via callbacks.
+ * 2. MUST conditionally render admin-only controls based on the `isAdmin` prop.
+ * 3. MUST provide `aria-label` attributes for all icon-only buttons.
+ * 4. DELEGATES all event handling to its parent via callbacks.
  * @api-declaration
  *   - default: The GroupActionButtons React functional component.
  * @contract

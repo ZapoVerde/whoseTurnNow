@@ -19,17 +19,11 @@
  * 3. MUST NOT contain any of its own local state.
  */
 import React from 'react';
-import { Stack, Button, Typography } from '@mui/material';
+import { Stack, Button } from '@mui/material';
 import { useSettingsStore } from '../../features/settings/useSettingsStore';
 
 export const ThemeControls: React.FC = () => {
-  const themeMode = useSettingsStore((state) => state.themeMode);
-  const density = useSettingsStore((state) => state.density);
-  const visualComplexity = useSettingsStore((state) => state.visualComplexity);
-
-  const setThemeMode = useSettingsStore((state) => state.setThemeMode);
-  const setDensity = useSettingsStore((state) => state.setDensity);
-  const setVisualComplexity = useSettingsStore((state) => state.setVisualComplexity);
+  const { themeMode, density, visualComplexity, setThemeMode, setDensity, setVisualComplexity } = useSettingsStore();
 
   const handleModeToggle = () => {
     setThemeMode(themeMode === 'light' ? 'dark' : 'light');
@@ -44,21 +38,34 @@ export const ThemeControls: React.FC = () => {
   };
 
   return (
+    // --- THIS IS THE FIX ---
+    // The descriptive Typography labels have been removed.
+    // The text inside each Button is now dynamic and displays the current state.
     <Stack direction="row" spacing={1} alignItems="center">
-      <Typography variant="body2">Mode: {themeMode}</Typography>
-      <Button variant="outlined" onClick={handleModeToggle}>
-        Toggle Mode
+      <Button
+        variant="outlined"
+        onClick={handleModeToggle}
+        sx={{ textTransform: 'capitalize' }}
+      >
+        {themeMode} Mode
       </Button>
 
-      <Typography variant="body2">Density: {density}</Typography>
-      <Button variant="outlined" onClick={handleDensityToggle}>
-        Toggle Density
+      <Button
+        variant="outlined"
+        onClick={handleDensityToggle}
+        sx={{ textTransform: 'capitalize' }}
+      >
+        {density} Density
       </Button>
 
-      <Typography variant="body2">Complexity: {visualComplexity}</Typography>
-      <Button variant="outlined" onClick={handleComplexityToggle}>
-        Toggle Complexity
+      <Button
+        variant="outlined"
+        onClick={handleComplexityToggle}
+        sx={{ textTransform: 'capitalize' }}
+      >
+        {visualComplexity} Complexity
       </Button>
     </Stack>
+    // --- END FIX ---
   );
 };

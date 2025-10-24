@@ -5,17 +5,19 @@
  * @description
  * The top-level UI component for the Group Detail feature. It consumes the
  * complete view model from the `useGroupDetail` hook and orchestrates the
- * rendering of all sub-components, including the new horizontal action bar.
+ * rendering of all sub-components in a compliant, accessible layout.
  * @core-principles
  * 1. IS a "dumb" component that primarily composes other dumb children.
- * 2. MUST NOT contain any direct business logic; this is delegated to its backing hooks.
+ * 2. MUST delegate all business logic to its backing `useGroupDetail` hook.
  * 3. OWNS the side effect of configuring the global `AppBar`.
- * 4. MUST correctly wire up all actions and state to the appropriate child components.
+ * 4. MUST provide a semantic `<main>` landmark for its content.
  * @api-declaration
+ *   - default: The GroupDetailScreen React functional component.
  *   - URL Parameters: Consumes `groupId` from the route path (`/group/:groupId`).
- *   - Props: None. This component does not accept any direct props.
- *   - Side Effects: Configures the global `useAppBarStore` on mount to set the
- *     screen's title, back button visibility, and contextual actions.
+ *   - Global State: Subscribes to `useAuthStore` and `useGroupStore` via its
+ *     `useGroupDetail` hook. Dispatches configuration to the `useAppBarStore`.
+ *   - Side Effects: Orchestrates the entire feature's lifecycle, delegating
+ *     data fetching and writes to its backing hooks.
  * @contract
  *   assertions:
  *     purity: pure
@@ -129,7 +131,6 @@ export const GroupDetailScreen: FC = () => {
         />
         <TurnHistory turnLog={turnLog} formatLogEntry={actions.formatLogEntry} />
       </Box>
-
       <GroupActionButtons
         isParticipant={!!currentUserParticipant}
         onTurnAction={actions.handleTurnAction}
@@ -182,10 +183,8 @@ export const GroupDetailScreen: FC = () => {
             <>
               {participantMenu.selectedParticipant.uid !== user?.uid && (
                 <>
-                  {/* --- THIS IS THE NEW MENU ITEM --- */}
                   <MenuItem
                     onClick={() => {
-                      // --- DEBUG LOG ---
                       console.log(
                         `[UI] Admin initiating turn completion for participant: ${participantMenu.selectedParticipant?.id}`,
                       );
@@ -197,7 +196,6 @@ export const GroupDetailScreen: FC = () => {
                   >
                     Complete Turn
                   </MenuItem>
-                  {/* --- END NEW MENU ITEM --- */}
 
                   {participantMenu.selectedParticipant.role === 'member' &&
                   participantMenu.selectedParticipant.uid !== null ? (

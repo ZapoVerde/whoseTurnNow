@@ -4,11 +4,11 @@
  * @architectural-role Feature Entry Point
  * @description
  * Renders the UI for global account management. It uses the `useAppBar` hook to
- * configure the global AppBar with a back button and the appropriate title.
+ * configure the global AppBar and adheres to all layout and accessibility standards.
  * @core-principles
  * 1. IS the primary UI for all global user account and theme settings.
  * 2. OWNS the local UI state for the settings form and confirmation dialogs.
- * 3. MUST declaratively configure the global AppBar for its context.
+ * 3. MUST provide a semantic `<main>` landmark for its content.
  * @api-declaration
  *   - default: The SettingsScreen React functional component.
  * @contract
@@ -34,7 +34,7 @@ import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
-import GitHubIcon from '@mui/icons-material/GitHub'; // <-- ADD THIS IMPORT
+import GitHubIcon from '@mui/icons-material/GitHub';
 import { useAuthStore } from '../auth/useAuthStore';
 import { userRepository } from '../auth/userRepository';
 import { ThemeControls } from '../../theme/components/ThemeControls';
@@ -47,12 +47,12 @@ export const SettingsScreen: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   const [feedback, setFeedback] = useState<{
     message: string;
     severity: 'success' | 'error';
   } | null>(null);
 
-  // Configure the global AppBar for this screen
   useAppBar({ title: 'Settings', showBackButton: true });
 
   useEffect(() => {
@@ -71,7 +71,6 @@ export const SettingsScreen: React.FC = () => {
       setAuthenticated(updatedUser);
       setFeedback({ message: 'Display name updated!', severity: 'success' });
     } catch (error) {
-      console.error('Failed to update display name:', error);
       setFeedback({ message: 'Failed to update name.', severity: 'error' });
     } finally {
       setIsSaving(false);
@@ -79,125 +78,125 @@ export const SettingsScreen: React.FC = () => {
   };
 
   const handleDeleteAccount = async () => {
+    if (!user) return;
     setIsDeleting(true);
     try {
+      const blockingGroup = await userRepository.findBlockingGroup(user.uid);
+      if (blockingGroup) {
+        throw new Error(`Cannot delete account. You are the last admin of "${blockingGroup}". Please promote another admin or delete the group first.`);
+      }
       await userRepository.deleteUserAccount();
-    } catch (error) {
-      console.error('Failed to delete account:', error);
+      // On success, the auth listener will handle navigation.
+    } catch (error: any) {
       setFeedback({
-        message: 'Failed to delete account. You may need to log in again first.',
+        message: error.message || 'Failed to delete account.',
         severity: 'error',
       });
+    } finally {
       setIsDeleting(false);
       setIsDeleteDialogOpen(false);
     }
   };
-
+  
   return (
     <>
-      <Stack spacing={4}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Profile
-          </Typography>
-          <Box
-            component="form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSaveDisplayName();
-            }}
-          >
-            <TextField
-              label="Global Display Name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              fullWidth
-              variant="outlined"
-              margin="normal"
-              disabled={isSaving}
-            />
+      {/* --- THIS IS FIX #13 --- */}
+      <Box component="main">
+        <Stack spacing={4}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Profile
+            </Typography>
+            {/* --- THIS IS FIX #14 --- */}
+            <Stack component="form" spacing={2} onSubmit={(e) => { e.preventDefault(); handleSaveDisplayName(); }}>
+              <TextField
+                label="Global Display Name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                fullWidth
+                variant="outlined"
+                disabled={isSaving}
+              />
+              <Box>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={isSaving || displayName.trim() === (user?.displayName || '')}
+                >
+                  {isSaving ? <CircularProgress size={24} /> : 'Save Changes'}
+                </Button>
+              </Box>
+            </Stack>
+            {/* --- END FIX --- */}
+          </Paper>
+
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Theme Settings
+            </Typography>
+            <ThemeControls />
+          </Paper>
+
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              About
+            </Typography>
             <Button
-              type="submit"
-              variant="contained"
-              disabled={isSaving || displayName === user?.displayName}
-              sx={{ mt: 1 }}
+              variant="outlined"
+              startIcon={<GitHubIcon />}
+              component="a"
+              href="https://github.com/ZapoVerde/whoseTurnNow"
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              {isSaving ? <CircularProgress size={24} /> : 'Save Changes'}
+              View on GitHub
             </Button>
-          </Box>
-        </Paper>
+          </Paper>
 
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Theme Settings
-          </Typography>
-          <ThemeControls />
-        </Paper>
+          <Divider />
 
-        {/* --- THIS IS THE FIX --- */}
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            About
-          </Typography>
-          <Button
-            variant="outlined"
-            startIcon={<GitHubIcon />}
-            component="a"
-            href="https://github.com/ZapoVerde/whoseTurnNow"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View on GitHub
-          </Button>
-        </Paper>
-        {/* --- END FIX --- */}
-
-        <Divider />
-
-        <Paper sx={{ p: 3, border: 1, borderColor: 'error.main' }}>
-          <Typography variant="h6" color="error" gutterBottom>
-            Danger Zone
-          </Typography>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            This action is permanent and cannot be undone.
-          </Typography>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={() => setIsDeleteDialogOpen(true)}
-          >
-            Delete Account
-          </Button>
-        </Paper>
-      </Stack>
+          <Paper sx={{ p: 3, border: 1, borderColor: 'error.main' }}>
+            <Typography variant="h6" color="error" gutterBottom>
+              Danger Zone
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              This action is permanent and cannot be undone.
+            </Typography>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={() => setIsDeleteDialogOpen(true)}
+            >
+              Delete Account
+            </Button>
+          </Paper>
+        </Stack>
+      </Box>
 
       <Dialog open={isDeleteDialogOpen} onClose={() => setIsDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Your Account?</DialogTitle>
+        <DialogTitle>Are you absolutely sure?</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            This action is permanent and cannot be undone. All your data
-            will be deleted.
+          <DialogContentText sx={{ mb: 2 }}>
+            This action cannot be undone. To confirm, please type <strong>DELETE</strong> in the box below.
           </DialogContentText>
+          <TextField
+            autoFocus
+            label="Type DELETE to confirm"
+            fullWidth
+            variant="outlined"
+            value={deleteConfirmationText}
+            onChange={(e) => setDeleteConfirmationText(e.target.value)}
+          />
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={() => setIsDeleteDialogOpen(false)}
-            disabled={isDeleting}
-          >
-            Cancel
-          </Button>
+          <Button onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting}>Cancel</Button>
           <Button
             onClick={handleDeleteAccount}
             color="error"
             variant="contained"
-            disabled={isDeleting}
-            autoFocus
+            disabled={isDeleting || deleteConfirmationText !== 'DELETE'}
           >
-            {isDeleting ? (
-              <CircularProgress size={24} />
-            ) : (
-              'Confirm Deletion'
-            )}
+            {isDeleting ? <CircularProgress size={24} /> : 'Confirm Deletion'}
           </Button>
         </DialogActions>
       </Dialog>

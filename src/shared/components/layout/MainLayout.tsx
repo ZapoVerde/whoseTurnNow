@@ -11,7 +11,13 @@
  * 2. OWNS the rendering of the global AppBar.
  * 3. MUST derive its AppBar's state from the `useAppBarStore`.
  * @api-declaration
- *   - default: The MainLayout React functional component.
+ * - default: The MainLayout React functional component.
+ * - Props: None. This component is a layout shell and does not accept any direct props.
+ * - Global State: Subscribes to the `useAppBarStore` to dynamically configure the
+ *   AppBar's title, actions, and back button visibility.
+ * - Side Effects: Triggers browser navigation via `react-router-dom`'s
+ *   `useNavigate` hook when the back button is clicked. It also renders
+ *   nested child routes via the `<Outlet />` component.
  * @contract
  *   assertions:
  *     purity: pure
