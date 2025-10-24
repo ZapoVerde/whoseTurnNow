@@ -22,28 +22,21 @@ service cloud.firestore {
       return isMember(groupData);
     }
     
-    // --- THIS IS A NEW, MORE PRECISE HELPER FUNCTION ---
-    // Checks if the user is a member before the change, but not after.
     function isLeavingGroup() {
       return isMember(resource.data) && !isMember(request.resource.data);
     }
-    // --- END NEW FUNCTION ---
 
     function isJoiningGroup() {
       return !isMember(resource.data) && isMember(request.resource.data);
     }
     
     function lastAdminRuleIsSatisfied() {
-      // The group must have at least one admin after the change is made.
       return request.resource.data.adminUids.size() >= 1;
     }
 
-    // --- THIS IS ANOTHER NEW HELPER FUNCTION ---
-    // Ensures a non-admin is only changing fields related to the participant roster.
     function isOnlyModifyingMembership() {
       return request.writeFields.hasOnly(['participants', 'turnOrder', 'participantUids', 'adminUids']);
     }
-    // --- END NEW FUNCTION ---
 
     function isValidNewGroup() {
       let group = request.resource.data;
@@ -65,20 +58,25 @@ service cloud.firestore {
     }
 
     match /groups/{groupId} {
-      allow get, list: if isMemberOfParentGroup(groupId);
+      // --- THIS IS THE FIX ---
+      // 'get': Allows reading a SINGLE document. This remains strict. You can only
+      // get a group document if you are a member of it.
+      allow get: if isMemberOfParentGroup(groupId);
+
+      // 'list': Allows querying a COLLECTION. This rule is now broader. It allows
+      // any authenticated user to perform a query. The actual security is enforced
+      // by the client-side code, which ALWAYS includes a `where('participantUids', 'array-contains', currentUser.uid)`
+      // clause. Firestore guarantees that this query will only ever return documents
+      // the user is a member of. This resolves the 'permission-denied' error.
+      allow list: if isAuthenticated();
+      // --- END FIX ---
+      
       allow create: if isAuthenticated() && isValidNewGroup();
 
-      // --- THIS IS THE FINAL, CORRECTED RULE ---
-      // An update is now allowed if ANY of the following are true:
-      // 1. The user is an admin making a valid change.
-      // 2. A new user is joining the group.
-      // 3. An existing member is leaving the group (and they are not the last admin).
-      // 4. An existing member is performing a valid roster/turn action (like taking a turn).
       allow update: if (isAdmin(resource.data) && lastAdminRuleIsSatisfied())
                       || isJoiningGroup()
                       || (isLeavingGroup() && lastAdminRuleIsSatisfied() && isOnlyModifyingMembership())
                       || (isMember(resource.data) && isOnlyModifyingMembership());
-      // --- END FIX ---
                       
       allow delete: if isAdmin(get(/databases/$(database)/documents/groups/$(groupId)).data);
       

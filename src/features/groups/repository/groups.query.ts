@@ -9,7 +9,7 @@
  * @core-principles
  * 1. OWNS all read-only I/O logic for group data.
  * 2. MUST NOT contain any functions that mutate state (create, update, delete).
- * 3. MUST provide both one-time fetch and real-time subscription capabilities.
+ * 3. MUST gracefully handle `permission-denied` errors on listeners.
  * @api-declaration
  *   - getUserGroups: Establishes a real-time listener for a user's groups.
  *   - getGroup: Establishes a real-time listener for a single group.
@@ -23,90 +23,116 @@
  */
 
 import {
-    collection,
-    doc,
-    query,
-    where,
-    onSnapshot,
-    orderBy,
-    limit,
-    getDoc,
-    type Unsubscribe,
-  } from 'firebase/firestore';
-  import { db } from '../../../lib/firebase';
-  import type { Group, LogEntry } from '../../../types/group';
+  collection,
+  doc,
+  query,
+  where,
+  onSnapshot,
+  orderBy,
+  limit,
+  getDoc,
+  type Unsubscribe,
+} from 'firebase/firestore';
+import { db } from '../../../lib/firebase';
+import type { Group, LogEntry } from '../../../types/group';
+
+/**
+ * Establishes a real-time listener that provides all groups a user is a member of.
+ * @param userId The UID of the user whose groups to fetch.
+ * @param onUpdate A callback function that will be invoked with the updated list of groups.
+ * @returns An Unsubscribe function to detach the listener.
+ */
+export function getUserGroups(
+  userId: string,
+  onUpdate: (groups: Group[]) => void,
+): Unsubscribe {
+  // --- DEBUG LOG ---
+  console.log(`[getUserGroups] Subscribing to groups for userId: '${userId}'`);
   
-  /**
-   * Establishes a real-time listener that provides all groups a user is a member of.
-   * @param userId The UID of the user whose groups to fetch.
-   * @param onUpdate A callback function that will be invoked with the updated list of groups.
-   * @returns An Unsubscribe function to detach the listener.
-   */
-  export function getUserGroups(
-    userId: string,
-    onUpdate: (groups: Group[]) => void,
-  ): Unsubscribe {
-    const groupsCollectionRef = collection(db, 'groups');
-    const q = query(
-      groupsCollectionRef,
-      where(`participantUids.${userId}`, '==', true),
-    );
-  
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+  const groupsCollectionRef = collection(db, 'groups');
+  const q = query(
+    groupsCollectionRef,
+    where(`participantUids.${userId}`, '==', true),
+  );
+
+  const unsubscribe = onSnapshot(
+    q, 
+    (querySnapshot) => {
+      // --- DEBUG LOG ---
+      console.log(`[getUserGroups] SUCCESS: Snapshot received with ${querySnapshot.docs.length} documents.`);
       const groups = querySnapshot.docs.map((doc) => doc.data() as Group);
       onUpdate(groups);
-    });
-  
-    return unsubscribe;
-  }
-  
-  /**
-   * Establishes a real-time listener for a single group document.
-   * @param groupId The ID of the group to listen to.
-   * @param onUpdate A callback function that will be invoked with the group data.
-   * @returns An Unsubscribe function to detach the listener.
-   */
-  export function getGroup(
-    groupId: string,
-    onUpdate: (group: Group | null) => void,
-  ): Unsubscribe {
-    const groupDocRef = doc(db, 'groups', groupId);
-    return onSnapshot(groupDocRef, (docSnap) => {
+    },
+    (error) => {
+      // --- DEBUG LOG ---
+      console.error(`[getUserGroups listener] FAILED for userId '${userId}'. Code: ${error.code}`, error.message);
+    }
+  );
+
+  return unsubscribe;
+}
+
+/**
+ * Establishes a real-time listener for a single group document.
+ * @param groupId The ID of the group to listen to.
+ * @param onUpdate A callback function that will be invoked with the group data.
+ * @returns An Unsubscribe function to detach the listener.
+ */
+export function getGroup(
+  groupId: string,
+  onUpdate: (group: Group | null) => void,
+): Unsubscribe {
+  const groupDocRef = doc(db, 'groups', groupId);
+  return onSnapshot(
+    groupDocRef,
+    (docSnap) => {
       onUpdate(docSnap.exists() ? (docSnap.data() as Group) : null);
-    });
-  }
-  
-  /**
-   * Fetches a single group document once, without establishing a listener.
-   * @param groupId The ID of the group to fetch.
-   * @returns A promise that resolves to the Group object or null if not found.
-   */
-  export async function getGroupOnce(groupId: string): Promise<Group | null> {
-    const groupDocRef = doc(db, 'groups', groupId);
-    const groupDocSnap = await getDoc(groupDocRef);
-    return groupDocSnap.exists() ? (groupDocSnap.data() as Group) : null;
-  }
-  
-  /**
-   * Establishes a real-time listener for a group's turn log, ordered by most recent.
-   * @param groupId The ID of the group whose log to fetch.
-   * @param onUpdate A callback function that will be invoked with the list of log entries.
-   * @returns An Unsubscribe function to detach the listener.
-   */
-  export function getGroupTurnLog(
-    groupId: string,
-    onUpdate: (logs: (LogEntry & { id: string })[]) => void,
-  ): Unsubscribe {
-    const logsCollectionRef = collection(db, 'groups', groupId, 'turnLog');
-    const q = query(logsCollectionRef, orderBy('completedAt', 'desc'), limit(50));
-  
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const logs = querySnapshot.docs.map((doc) => ({
-        ...(doc.data() as LogEntry),
-        id: doc.id,
-      }));
-      onUpdate(logs);
-    });
-  
-    return unsubscribe;
-  };
+    },
+    (error) => {
+      console.error('[getGroup listener] Snapshot error:', error.code, error.message);
+      if (error.code === 'permission-denied') {
+        console.log('[getGroup listener] Permission denied. Treating group as null.');
+        onUpdate(null);
+      }
+    }
+  );
+}
+
+/**
+ * Fetches a single group document once, without establishing a listener.
+ * @param groupId The ID of the group to fetch.
+ * @returns A promise that resolves to the Group object or null if not found.
+ */
+export async function getGroupOnce(groupId: string): Promise<Group | null> {
+  const groupDocRef = doc(db, 'groups', groupId);
+  const groupDocSnap = await getDoc(groupDocRef);
+  return groupDocSnap.exists() ? (groupDocSnap.data() as Group) : null;
+}
+
+/**
+ * Establishes a real-time listener for a group's turn log, ordered by most recent.
+ * @param groupId The ID of the group whose log to fetch.
+ * @param onUpdate A callback function that will be invoked with the list of log entries.
+ * @returns An Unsubscribe function to detach the listener.
+ */
+export function getGroupTurnLog(
+  groupId: string,
+  onUpdate: (logs: (LogEntry & { id: string })[]) => void,
+): Unsubscribe {
+  const logsCollectionRef = collection(db, 'groups', groupId, 'turnLog');
+  const q = query(logsCollectionRef, orderBy('completedAt', 'desc'), limit(50));
+
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const logs = querySnapshot.docs.map((doc) => ({
+      ...(doc.data() as LogEntry),
+      id: doc.id,
+    }));
+    onUpdate(logs);
+  },
+  (error) => {
+      // --- DEBUG LOG ---
+      console.error(`[getGroupTurnLog listener] FAILED for groupId '${groupId}'. Code: ${error.code}`, error.message);
+  });
+
+  return unsubscribe;
+};
