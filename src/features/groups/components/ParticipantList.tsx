@@ -1,15 +1,15 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/components/ParticipantList.tsx
- * @stamp {"ts":"2025-10-24T08:12:00Z"}
+ * @stamp {"ts":"2025-10-24T12:00:00Z"}
  * @architectural-role UI Component
  * @description
- * Renders the ordered list of participants. It uses a combination of an accent
- * border, increased font weight, and spacing to create a strong visual hierarchy
- * that clearly emphasizes the participant whose turn is next.
+ * Renders the ordered list of participants. It now ensures all participant rows
+ * are rendered at full contrast and only attaches the menu-opening click handler
+ * for administrative users, preventing empty menus from appearing for others.
  * @core-principles
  * 1. IS a pure, presentational ("dumb") component.
- * 2. MUST use distinct styling (bolding, spacing, border) to visually distinguish the next participant.
- * 3. MUST render all participant names with an increased, uniform font size for readability.
+ * 2. MUST use distinct styling to visually distinguish the next participant.
+ * 3. MUST only enable context menu interactions for users with the 'admin' role.
  * 4. DELEGATES all user interactions to its parent component via callbacks.
  * @api-declaration
  *   - default: The ParticipantList React functional component.
@@ -50,7 +50,7 @@ export const ParticipantList: FC<ParticipantListProps> = ({
   const theme = useTheme();
 
   return (
-    <Stack spacing={1} sx={{ mt: 4 }}>
+    <Stack spacing={1} sx={{ mt: 2 }}>
       {participants.map((participant, index) => (
         <Card
           key={participant.id}
@@ -60,25 +60,28 @@ export const ParticipantList: FC<ParticipantListProps> = ({
                 ? `0 0 8px 2px ${theme.palette.secondary.main}`
                 : theme.shadows[1],
             border: `1px solid ${theme.palette.divider}`,
-            // --- THIS IS THE FIX: Add margin-bottom only to the first item ---
             mb: index === 0 ? 2 : 0,
           }}
         >
+          {/* --- THIS IS THE FIX --- */}
+          {/* The `onClick` is now conditional, and the `disabled` prop is removed. */}
           <ListItemButton
-            onClick={(e) => onParticipantClick(e, participant)}
-            disabled={!isAdmin && participant.uid === null}
+            onClick={isAdmin ? (e) => onParticipantClick(e, participant) : undefined}
+            sx={{
+                // Ensure the button has a pointer cursor only when it's clickable for admins
+                cursor: isAdmin ? 'pointer' : 'default',
+            }}
           >
-            {/* --- THIS IS THE FIX: Uniform size, conditional bolding --- */}
+          {/* --- END FIX --- */}
             <ListItemText
               primary={participant.nickname || 'Unnamed'}
               secondary={`Turns: ${participant.turnCount}`}
               primaryTypographyProps={{
-                variant: 'h6', // Larger font size for ALL participants
-                fontWeight: index === 0 ? 'bold' : 'normal', // BOLD for the first participant only
+                variant: 'h6',
+                fontWeight: index === 0 ? 'bold' : 'normal',
                 component: 'span',
               }}
             />
-            {/* --- END FIX --- */}
             {participant.role === 'admin' && (
               <Chip
                 icon={<AdminPanelSettingsIcon />}
