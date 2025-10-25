@@ -28,6 +28,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { logger } from '../../shared/utils/debug';
 
 export interface AppUser {
   uid: string;

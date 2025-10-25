@@ -11,10 +11,10 @@ A lightweight, real-time, open-source utility for tracking whose turn it is. Man
 
 **Live Demo:** [whoseturnnow.web.app](https://whoseturnnow.web.app)
 
-![Dashboard View](./docs/assets/screenshot-dashboard.png)
+![Dashboard View](./docs/assets/dashboard.png)
 *The main dashboard showing all your lists, with a highlight for lists where it's your turn.*
 
-![List Detail View](./docs/assets/screenshot-list-view.png)
+![List Detail View](./docs/assets/list.png)
 *The interactive list view with the "Up Next" participant, action buttons, and transparent turn history.*
 
 ## The Philosophy

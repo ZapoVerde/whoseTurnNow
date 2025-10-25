@@ -32,6 +32,7 @@ import { db } from '../../../lib/firebase';
 import type { AppUser } from '../../auth/useAuthStore';
 import type { Group, TurnParticipant } from '../../../types/group';
 import { _deriveUids } from './_utils';
+import { logger } from '../../../shared/utils/debug';
 
 /**
  * Adds a new "Managed Participant" (a placeholder without a user account) to a group.

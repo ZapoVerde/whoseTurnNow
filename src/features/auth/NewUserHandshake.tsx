@@ -24,6 +24,7 @@ import React, { useState } from 'react';
 import { Box, Button, CircularProgress, Container, TextField, Typography, Stack } from '@mui/material';
 import { useAuthStore } from './useAuthStore';
 import { userRepository } from './userRepository';
+import { logger } from '../../shared/utils/debug';
 
 export const NewUserHandshake: React.FC = () => {
   const user = useAuthStore((state) => state.user);
@@ -44,7 +45,7 @@ export const NewUserHandshake: React.FC = () => {
       
       setAuthenticated(newUserProfile);
     } catch (error) {
-      logger.error("Failed to create user profile:", error);
+      logger.error("Failed to create user profile:", { error });
     } finally {
       setIsSubmitting(false);
     }

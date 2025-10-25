@@ -30,6 +30,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { useAuthStore } from './useAuthStore';
 import { userRepository } from './userRepository';
+import { logger } from '../../shared/utils/debug';
 
 export function useFirebaseAuthListener() {
   const { setAuthenticated, setUnauthenticated, setNewUser } = useAuthStore();
@@ -56,7 +57,7 @@ export function useFirebaseAuthListener() {
 
       if (userProfile) {
         // --- DEBUG LOG ---
-        logger.log('[Listener] Profile FOUND in database. Setting authenticated.', userProfile);
+        logger.debug('[Listener] Profile FOUND in database. Setting authenticated.', { userProfile });
         setAuthenticated(userProfile);
       } else {
         // --- DEBUG LOG ---

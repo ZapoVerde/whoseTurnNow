@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/repository/groups.query.ts
- * @stamp {"ts":"2025-10-23T09:45:00Z"}
+ * @stamp {"ts":"2025-10-25T09:45:00Z"}
  * @architectural-role Data Repository (Query)
  * @description
  * Encapsulates all read-only Firestore interactions. This module implements the
@@ -10,7 +10,7 @@
  * 1. OWNS all read-only I/O logic for group data.
  * 2. MUST attempt to establish real-time listeners (`onSnapshot`) by default.
  * 3. MUST catch `resource-exhausted` errors, set the global app status to
- *    'degraded', and perform a fallback static fetch (`getDocs`).
+ *    'degraded', and perform a fallback static fetch (`getDocs` or `getDoc`).
  * @api-declaration
  *   - All functions are exported via the `groupsRepository` object in `index.ts`.
  * @contract
@@ -33,63 +33,57 @@ import {
   type Unsubscribe,
   type Query,
   type DocumentReference,
+  type FirestoreError,
 } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAppStatusStore } from '../../../shared/store/useAppStatusStore';
-import type { Group, LogEntry } from '../../../types/group';
 import { logger } from '../../../shared/utils/debug';
+import type { Group, LogEntry } from '../../../types/group';
 
 const FIREBASE_RESOURCE_EXHAUSTED = 'resource-exhausted';
 
 /**
- * A private helper function that implements the circuit breaker logic for any query.
+ * A private, generic helper that implements the circuit breaker logic.
+ * It now accepts a `transform` function to handle different data shapes.
  */
 function createResilientListener<T>(
   q: Query | DocumentReference,
-  onUpdate: (data: any) => void,
-  isSingleDoc: boolean = false,
+  onUpdate: (data: T) => void,
+  transform: (snapshot: any) => T,
 ): Unsubscribe {
   const { setConnectionMode } = useAppStatusStore.getState();
 
   const unsubscribe = onSnapshot(
-    q as Query, // Cast for onSnapshot signature
+    q as Query,
     (snapshot: any) => {
-      // --- DEBUG LOG ---
-      logger.log('[CircuitBreaker] Real-time update received. Ensuring LIVE mode.');
+      logger.debug('[CircuitBreaker] Real-time update received. Ensuring LIVE mode.');
       setConnectionMode('live');
-      if (isSingleDoc) {
-        onUpdate(snapshot.exists() ? (snapshot.data() as T) : null);
-      } else {
-        const data = snapshot.docs.map((doc: any) => doc.data() as T);
-        onUpdate(data);
-      }
+      const data = transform(snapshot);
+      onUpdate(data);
     },
-    async (error) => {
-      logger.error('[CircuitBreaker] Listener error:', error.code, error.message);
+    async (error: FirestoreError) => {
+      // THIS IS THE FIX: The error data is now in a single context object.
+      logger.error('[CircuitBreaker] Listener error:', {
+        code: error.code,
+        message: error.message,
+      });
 
       if (error.code === FIREBASE_RESOURCE_EXHAUSTED) {
         logger.warn('[CircuitBreaker] TRIPPED! Degrading to static fetch.');
         setConnectionMode('degraded');
-        
-        try {
-          const staticSnapshot = isSingleDoc 
-            ? await getDoc(q as DocumentReference) 
-            // @ts-ignore
-            : await getDocs(q);
 
-          if (isSingleDoc) {
-            // @ts-ignore
-            onUpdate(staticSnapshot.exists() ? (staticSnapshot.data() as T) : null);
-          } else {
-            // @ts-ignore
-            const data = staticSnapshot.docs.map((doc: any) => doc.data() as T);
-            onUpdate(data);
-          }
-        } catch (staticFetchError) {
-          logger.error('[CircuitBreaker] Fallback static fetch also failed:', staticFetchError);
+        try {
+          const staticSnapshot =
+            q.type === 'document' ? await getDoc(q) : await getDocs(q as Query);
+          const data = transform(staticSnapshot);
+          onUpdate(data);
+        } catch (staticFetchError: unknown) {
+          logger.error('[CircuitBreaker] Fallback static fetch also failed:', {
+            error: staticFetchError,
+          });
         }
       }
-    }
+    },
   );
 
   return unsubscribe;
@@ -99,24 +93,28 @@ export function getUserGroups(
   userId: string,
   onUpdate: (groups: Group[]) => void,
 ): Unsubscribe {
-  logger.log(`[getUserGroups] Subscribing for userId: '${userId}'`);
+  logger.debug(`[getUserGroups] Subscribing for userId: '${userId}'`);
   const groupsCollectionRef = collection(db, 'groups');
   const q = query(
     groupsCollectionRef,
     where(`participantUids.${userId}`, '==', true),
   );
-  
-  return createResilientListener<Group>(q, onUpdate);
+
+  return createResilientListener<Group[]>(q, onUpdate, (snapshot) =>
+    snapshot.docs.map((doc: any) => doc.data()),
+  );
 }
 
 export function getGroup(
   groupId: string,
   onUpdate: (group: Group | null) => void,
 ): Unsubscribe {
-  logger.log(`[getGroup] Subscribing for groupId: '${groupId}'`);
+  logger.debug(`[getGroup] Subscribing for groupId: '${groupId}'`);
   const groupDocRef = doc(db, 'groups', groupId);
-  
-  return createResilientListener<Group>(groupDocRef, onUpdate, true);
+
+  return createResilientListener<Group | null>(groupDocRef, onUpdate, (snapshot) =>
+    snapshot.exists() ? snapshot.data() : null,
+  );
 }
 
 export async function getGroupOnce(groupId: string): Promise<Group | null> {
@@ -129,43 +127,15 @@ export function getGroupTurnLog(
   groupId: string,
   onUpdate: (logs: (LogEntry & { id: string })[]) => void,
 ): Unsubscribe {
-  logger.log(`[getGroupTurnLog] Subscribing for groupId: '${groupId}'`);
-  const { setConnectionMode } = useAppStatusStore.getState();
+  logger.debug(`[getGroupTurnLog] Subscribing for groupId: '${groupId}'`);
   const logsCollectionRef = collection(db, 'groups', groupId, 'turnLog');
   const q = query(logsCollectionRef, orderBy('completedAt', 'desc'), limit(50));
 
-  const unsubscribe = onSnapshot(
+  // REFACTORED: Now uses the single, resilient helper function.
+  return createResilientListener<(LogEntry & { id: string })[]>(
     q,
-    (querySnapshot) => {
-      // --- DEBUG LOG ---
-      logger.log(`[getGroupTurnLog] Real-time update received for groupId: '${groupId}'. Ensuring LIVE mode.`);
-      setConnectionMode('live');
-      const logs = querySnapshot.docs.map((doc) => ({
-        ...(doc.data() as LogEntry),
-        id: doc.id,
-      }));
-      onUpdate(logs);
-    },
-    async (error) => {
-      logger.error(`[getGroupTurnLog listener] FAILED for groupId '${groupId}'. Code: ${error.code}`, error.message);
-
-      if (error.code === FIREBASE_RESOURCE_EXHAUSTED) {
-        logger.warn(`[getGroupTurnLog] TRIPPED for groupId '${groupId}'! Degrading to static fetch.`);
-        setConnectionMode('degraded');
-        
-        try {
-          const staticSnapshot = await getDocs(q);
-          const logs = staticSnapshot.docs.map((doc) => ({
-            ...(doc.data() as LogEntry),
-            id: doc.id,
-          }));
-          onUpdate(logs);
-        } catch (staticFetchError) {
-          logger.error('[getGroupTurnLog] Fallback static fetch also failed:', staticFetchError);
-        }
-      }
-    }
+    onUpdate,
+    (snapshot) =>
+      snapshot.docs.map((doc: any) => ({ ...doc.data(), id: doc.id })),
   );
-
-  return unsubscribe;
 }
