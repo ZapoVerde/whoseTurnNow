@@ -22,6 +22,7 @@
  */
 
 import { useEffect } from 'react';
+import { logger } from '../utils/debug';
 
 type ComponentLoader = () => Promise<any>;
 
@@ -36,7 +37,7 @@ export function useComponentPreloader(loaderFns: ComponentLoader[]) {
     const timer = setTimeout(() => {
       // Trigger each dynamic import. The browser will fetch and cache the
       // code without executing it until it's actually rendered.
-      console.log('[Preloader] Pre-fetching assets...');
+      logger.log('[Preloader] Pre-fetching assets...');
       loaderFns.forEach((load) => load());
     }, 2000); // 2-second delay is a safe default.
 

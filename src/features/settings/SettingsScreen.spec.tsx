@@ -4,7 +4,7 @@
  * @test-target packages/whoseturnnow/src/features/settings/SettingsScreen.tsx
  * @description
  * Verifies the end-to-end user flow for account management,
- * ensuring that display name changes and the high-friction account deletion
+ * ensuring that display name changes and the standard account deletion
  * process trigger the correct repository functions and gatekeeper checks.
  * @criticality
  * Critical (Reason: Security & Authentication Context)
@@ -48,9 +48,6 @@ describe('SettingsScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // THIS IS THE FIX: The mock implementation now provides a complete,
-    // type-safe state object to the selector. This prevents cascading
-    // errors during re-renders that were causing async operations to hang.
     mockUseAuthStore.mockImplementation((selector: (state: AuthState) => any) => {
       const state: AuthState = {
         user: mockUser,
@@ -76,16 +73,11 @@ describe('SettingsScreen', () => {
     const saveButton = screen.getByRole('button', { name: /Save Changes/i });
     const newName = 'New Name For User';
 
-    // ACT
     await user.clear(nameInput);
     await user.type(nameInput, newName);
     await user.click(saveButton);
 
-    // ASSERT
-    // Rely on findBy... to wait for the async operation to complete.
     expect(await screen.findByText('Display name updated!')).toBeInTheDocument();
-
-    // Now that the UI has updated, we can safely assert the mocks were called.
     expect(mockUpdateUserDisplayName).toHaveBeenCalledWith(mockUser.uid, newName);
     expect(mockSetAuthenticated).toHaveBeenCalledWith({
       ...mockUser,
@@ -93,22 +85,20 @@ describe('SettingsScreen', () => {
     });
   });
 
-  it('should complete the high-friction deletion flow when not blocked', async () => {
+  it('should complete the simplified deletion flow when not blocked', async () => {
     const user = userEvent.setup();
     render(<SettingsScreen />);
 
     // ACT
+    // 1. Click the initial button to open the dialog.
     await user.click(screen.getByRole('button', { name: /Delete Account/i }));
 
-    // Wait for the dialog to appear before interacting with it.
-    const confirmationInput = await screen.findByLabelText(/Type DELETE to confirm/i);
-    await user.type(confirmationInput, 'DELETE');
-
-    const finalConfirmButton = screen.getByRole('button', { name: /Confirm Deletion/i });
+    // 2. Find and click the final confirmation button in the dialog.
+    const finalConfirmButton = await screen.findByRole('button', { name: 'Delete' });
     await user.click(finalConfirmButton);
 
     // ASSERT
-    // The test will now correctly wait for the async checks to complete.
+    // Verify the underlying repository functions were called correctly.
     expect(mockFindBlockingGroup).toHaveBeenCalledWith(mockUser.uid);
     expect(mockDeleteUserAccount).toHaveBeenCalledTimes(1);
   });
@@ -120,9 +110,7 @@ describe('SettingsScreen', () => {
 
     // ACT
     await user.click(screen.getByRole('button', { name: /Delete Account/i }));
-    const confirmationInput = await screen.findByLabelText(/Type DELETE to confirm/i);
-    await user.type(confirmationInput, 'DELETE');
-    const finalConfirmButton = screen.getByRole('button', { name: /Confirm Deletion/i });
+    const finalConfirmButton = await screen.findByRole('button', { name: 'Delete' });
     await user.click(finalConfirmButton);
 
     // ASSERT
@@ -138,9 +126,7 @@ describe('SettingsScreen', () => {
 
     // ACT
     await user.click(screen.getByRole('button', { name: /Delete Account/i }));
-    const confirmationInput = await screen.findByLabelText(/Type DELETE to confirm/i);
-    await user.type(confirmationInput, 'DELETE');
-    const finalConfirmButton = screen.getByRole('button', { name: /Confirm Deletion/i });
+    const finalConfirmButton = await screen.findByRole('button', { name: 'Delete' });
     await user.click(finalConfirmButton);
 
     // ASSERT

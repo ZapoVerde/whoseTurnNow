@@ -29,6 +29,7 @@ import { useFirebaseAuthListener } from './features/auth/useFirebaseAuthListener
 import { MainLayout } from './shared/components/layout/MainLayout';
 import { NewUserHandshake } from './features/auth/NewUserHandshake';
 import { useAppStatusStore } from './shared/store/useAppStatusStore';
+import { logger } from './shared/utils/debug';
 
 // Lazy-loaded Screen Components
 const LoginScreen = React.lazy(() =>
@@ -94,7 +95,7 @@ export const App: React.FC = () => {
         const { connectionMode, setConnectionMode } = useAppStatusStore.getState();
         if (connectionMode === 'degraded') {
           // --- DEBUG LOG ---
-          console.log('[App] Tab became visible in degraded mode. Attempting to reconnect...');
+          logger.info('[App] Tab became visible in degraded mode. Attempting to reconnect...');
           setConnectionMode('live');
         }
       }

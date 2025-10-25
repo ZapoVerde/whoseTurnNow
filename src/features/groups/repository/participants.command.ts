@@ -181,7 +181,7 @@ export async function joinGroupAsNewParticipant(
     const group = groupDoc.data() as Group;
 
     if (group.participantUids[user.uid]) {
-      console.log('User is already in this group.');
+      logger.log('User is already in this group.');
       return;
     }
 

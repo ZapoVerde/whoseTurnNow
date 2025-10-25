@@ -35,6 +35,7 @@ import { groupsRepository } from './repository';
 import { useAuthStore } from '../auth/useAuthStore';
 import { useMenuState } from './hooks/useMenuState';
 import { EmojiPickerPopover } from '../../shared/components/EmojiPickerPopover';
+import { logger } from '../../shared/utils/debug';
 
 const DEFER_ACTION_MS = 50;
 
@@ -76,7 +77,7 @@ export const CreateListDialog: FC<CreateListDialogProps> = ({ open, onClose }) =
         });
         navigate(`/group/${newGroupId}`);
       } catch (error) {
-        console.error('Failed to create group:', error);
+        logger.error('Failed to create group:', { error });
       } finally {
         setIsSubmitting(false);
       }

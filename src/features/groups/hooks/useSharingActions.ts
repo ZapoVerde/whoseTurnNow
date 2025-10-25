@@ -29,6 +29,7 @@
 
 import { useCallback } from 'react';
 import type { Group } from '../../../types/group';
+import { logger } from '../../../shared/utils/debug';
 
 interface SharingActionsProps {
   groupId: string | undefined;
@@ -52,7 +53,7 @@ export function useSharingActions({
           });
         } catch (error) {
           // Log cancellations or failures, but don't show a snackbar for them.
-          console.log('Web Share API was cancelled or failed.', error);
+          logger.log('Web Share API was cancelled or failed.', { error });
         }
       } else {
         // Fallback for browsers without the Web Share API.

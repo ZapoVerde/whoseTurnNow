@@ -44,7 +44,7 @@ export const NewUserHandshake: React.FC = () => {
       
       setAuthenticated(newUserProfile);
     } catch (error) {
-      console.error("Failed to create user profile:", error);
+      logger.error("Failed to create user profile:", error);
     } finally {
       setIsSubmitting(false);
     }

@@ -37,6 +37,7 @@ import {
 import { db } from '../../../lib/firebase';
 import { useAppStatusStore } from '../../../shared/store/useAppStatusStore';
 import type { Group, LogEntry } from '../../../types/group';
+import { logger } from '../../../shared/utils/debug';
 
 const FIREBASE_RESOURCE_EXHAUSTED = 'resource-exhausted';
 
@@ -54,7 +55,7 @@ function createResilientListener<T>(
     q as Query, // Cast for onSnapshot signature
     (snapshot: any) => {
       // --- DEBUG LOG ---
-      console.log('[CircuitBreaker] Real-time update received. Ensuring LIVE mode.');
+      logger.log('[CircuitBreaker] Real-time update received. Ensuring LIVE mode.');
       setConnectionMode('live');
       if (isSingleDoc) {
         onUpdate(snapshot.exists() ? (snapshot.data() as T) : null);
@@ -64,10 +65,10 @@ function createResilientListener<T>(
       }
     },
     async (error) => {
-      console.error('[CircuitBreaker] Listener error:', error.code, error.message);
+      logger.error('[CircuitBreaker] Listener error:', error.code, error.message);
 
       if (error.code === FIREBASE_RESOURCE_EXHAUSTED) {
-        console.warn('[CircuitBreaker] TRIPPED! Degrading to static fetch.');
+        logger.warn('[CircuitBreaker] TRIPPED! Degrading to static fetch.');
         setConnectionMode('degraded');
         
         try {
@@ -85,7 +86,7 @@ function createResilientListener<T>(
             onUpdate(data);
           }
         } catch (staticFetchError) {
-          console.error('[CircuitBreaker] Fallback static fetch also failed:', staticFetchError);
+          logger.error('[CircuitBreaker] Fallback static fetch also failed:', staticFetchError);
         }
       }
     }
@@ -98,7 +99,7 @@ export function getUserGroups(
   userId: string,
   onUpdate: (groups: Group[]) => void,
 ): Unsubscribe {
-  console.log(`[getUserGroups] Subscribing for userId: '${userId}'`);
+  logger.log(`[getUserGroups] Subscribing for userId: '${userId}'`);
   const groupsCollectionRef = collection(db, 'groups');
   const q = query(
     groupsCollectionRef,
@@ -112,7 +113,7 @@ export function getGroup(
   groupId: string,
   onUpdate: (group: Group | null) => void,
 ): Unsubscribe {
-  console.log(`[getGroup] Subscribing for groupId: '${groupId}'`);
+  logger.log(`[getGroup] Subscribing for groupId: '${groupId}'`);
   const groupDocRef = doc(db, 'groups', groupId);
   
   return createResilientListener<Group>(groupDocRef, onUpdate, true);
@@ -128,7 +129,7 @@ export function getGroupTurnLog(
   groupId: string,
   onUpdate: (logs: (LogEntry & { id: string })[]) => void,
 ): Unsubscribe {
-  console.log(`[getGroupTurnLog] Subscribing for groupId: '${groupId}'`);
+  logger.log(`[getGroupTurnLog] Subscribing for groupId: '${groupId}'`);
   const { setConnectionMode } = useAppStatusStore.getState();
   const logsCollectionRef = collection(db, 'groups', groupId, 'turnLog');
   const q = query(logsCollectionRef, orderBy('completedAt', 'desc'), limit(50));
@@ -137,7 +138,7 @@ export function getGroupTurnLog(
     q,
     (querySnapshot) => {
       // --- DEBUG LOG ---
-      console.log(`[getGroupTurnLog] Real-time update received for groupId: '${groupId}'. Ensuring LIVE mode.`);
+      logger.log(`[getGroupTurnLog] Real-time update received for groupId: '${groupId}'. Ensuring LIVE mode.`);
       setConnectionMode('live');
       const logs = querySnapshot.docs.map((doc) => ({
         ...(doc.data() as LogEntry),
@@ -146,10 +147,10 @@ export function getGroupTurnLog(
       onUpdate(logs);
     },
     async (error) => {
-      console.error(`[getGroupTurnLog listener] FAILED for groupId '${groupId}'. Code: ${error.code}`, error.message);
+      logger.error(`[getGroupTurnLog listener] FAILED for groupId '${groupId}'. Code: ${error.code}`, error.message);
 
       if (error.code === FIREBASE_RESOURCE_EXHAUSTED) {
-        console.warn(`[getGroupTurnLog] TRIPPED for groupId '${groupId}'! Degrading to static fetch.`);
+        logger.warn(`[getGroupTurnLog] TRIPPED for groupId '${groupId}'! Degrading to static fetch.`);
         setConnectionMode('degraded');
         
         try {
@@ -160,7 +161,7 @@ export function getGroupTurnLog(
           }));
           onUpdate(logs);
         } catch (staticFetchError) {
-          console.error('[getGroupTurnLog] Fallback static fetch also failed:', staticFetchError);
+          logger.error('[getGroupTurnLog] Fallback static fetch also failed:', staticFetchError);
         }
       }
     }

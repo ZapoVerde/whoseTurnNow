@@ -36,6 +36,7 @@ import { groupsRepository } from '../repository';
 import { useGroupStore } from '../useGroupStore';
 import type { AppUser } from '../../auth/useAuthStore';
 import type { Group, TurnParticipant } from '../../../types/group';
+import { logger } from '../../../shared/utils/debug';
 
 interface MembershipActionsProps {
   groupId: string | undefined;
@@ -79,7 +80,7 @@ export function useMembershipActions({
       try {
         await groupsRepository.addManagedParticipant(groupId, name);
       } catch (error) {
-        console.error('Failed to add participant:', error);
+        logger.error('Failed to add participant:', { error });
         setFeedback({ message: 'Failed to add participant.', severity: 'error' });
         useGroupStore.getState().setGroup(originalGroup);
       }
@@ -93,7 +94,7 @@ export function useMembershipActions({
       try {
         await groupsRepository.updateParticipantRole(groupId, participantId, newRole);
       } catch (error) {
-        console.error('Failed to change role:', error);
+        logger.error('Failed to change role:', { error });
         setFeedback({ message: 'Failed to change role.', severity: 'error' });
       }
     },
@@ -108,7 +109,7 @@ export function useMembershipActions({
       try {
         await groupsRepository.removeParticipant(groupId, participantId);
       } catch (error) {
-        console.error('Failed to remove participant:', error);
+        logger.error('Failed to remove participant:', { error });
         setFeedback({ message: 'Failed to remove participant.', severity: 'error' });
       } finally {
         setIsSubmitting(false);
@@ -126,7 +127,7 @@ export function useMembershipActions({
       // On success, we navigate away, so we don't need to set submitting to false.
       navigate('/');
     } catch (error) {
-      console.error('Failed to leave group:', error);
+      logger.error('Failed to leave group:', { error });
       setFeedback({ message: 'Failed to leave group.', severity: 'error' });
       setIsSubmitting(false); // On failure, reset the loading state.
     }
@@ -154,7 +155,7 @@ export function useMembershipActions({
       try {
         await groupsRepository.completeTurnTransaction(groupId, user, participantId);
       } catch (error) {
-        console.error('Admin failed to complete turn for participant:', error);
+        logger.error('Admin failed to complete turn for participant:', { error });
         setFeedback({ message: 'Failed to complete the turn.', severity: 'error' });
         useGroupStore.getState().setGroup(originalGroup);
       }

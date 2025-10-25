@@ -1,3 +1,4 @@
+
 # Whose Turn Now
 
 [![Whose Turn Now CI](https://github.com/[YOUR_GITHUB_USERNAME]/[YOUR_REPO_NAME]/actions/workflows/ci.yml/badge.svg)](https://github.com/[YOUR_GITHUB_USERNAME]/[YOUR_REPO_NAME]/actions/workflows/ci.yml)
@@ -72,6 +73,9 @@ pnpm install
     VITE_FIREBASE_STORAGE_BUCKET="your-storage-bucket"
     VITE_FIREBASE_MESSAGING_SENDER_ID="your-messaging-sender-id"
     VITE_FIREBASE_APP_ID="your-app-id"
+
+    # (Optional) Set to 'true' to enable detailed console logging in development.
+    VITE_LOGGING_ENABLED=true
     ```
 
 **5. Run the development server:**

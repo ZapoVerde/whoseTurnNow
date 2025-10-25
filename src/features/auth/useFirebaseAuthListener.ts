@@ -36,18 +36,18 @@ export function useFirebaseAuthListener() {
 
   useEffect(() => {
     // --- DEBUG LOG ---
-    console.log('[Listener] Hook MOUNTED. Subscribing to auth changes.');
+    logger.log('[Listener] Hook MOUNTED. Subscribing to auth changes.');
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       // --- DEBUG LOG ---
-      console.log('[Listener] onAuthStateChanged FIRED.', { 
+      logger.log('[Listener] onAuthStateChanged FIRED.', { 
         uid: firebaseUser?.uid, 
         isAnonymous: firebaseUser?.isAnonymous 
       });
 
       if (!firebaseUser) {
         // --- DEBUG LOG ---
-        console.log('[Listener] User is NULL. Setting unauthenticated.');
+        logger.log('[Listener] User is NULL. Setting unauthenticated.');
         setUnauthenticated();
         return;
       }
@@ -56,11 +56,11 @@ export function useFirebaseAuthListener() {
 
       if (userProfile) {
         // --- DEBUG LOG ---
-        console.log('[Listener] Profile FOUND in database. Setting authenticated.', userProfile);
+        logger.log('[Listener] Profile FOUND in database. Setting authenticated.', userProfile);
         setAuthenticated(userProfile);
       } else {
         // --- DEBUG LOG ---
-        console.log('[Listener] Profile NOT FOUND. Setting to new-user state.');
+        logger.log('[Listener] Profile NOT FOUND. Setting to new-user state.');
         setNewUser({
           uid: firebaseUser.uid,
           displayName: null,
@@ -71,7 +71,7 @@ export function useFirebaseAuthListener() {
 
     return () => {
       // --- DEBUG LOG ---
-      console.log('[Listener] Hook UNMOUNTED. Unsubscribing.');
+      logger.log('[Listener] Hook UNMOUNTED. Unsubscribing.');
       unsubscribe();
     };
   }, [setAuthenticated, setUnauthenticated, setNewUser]);

@@ -55,28 +55,28 @@ export const useAuthStore = create<AuthState>()(
     setAuthenticated: (user) =>
       set((state) => {
         // --- DEBUG LOG ---
-        console.log('[AuthStore] ACTION: setAuthenticated', { user });
+        logger.log('[AuthStore] ACTION: setAuthenticated', { user });
         state.user = user;
         state.status = 'authenticated';
       }),
     setUnauthenticated: () =>
       set((state) => {
         // --- DEBUG LOG ---
-        console.log('[AuthStore] ACTION: setUnauthenticated');
+        logger.log('[AuthStore] ACTION: setUnauthenticated');
         state.user = null;
         state.status = 'unauthenticated';
       }),
     setNewUser: (user) =>
       set((state) => {
         // --- DEBUG LOG ---
-        console.log('[AuthStore] ACTION: setNewUser', { user });
+        logger.log('[AuthStore] ACTION: setNewUser', { user });
         state.user = user;
         state.status = 'new-user';
       }),
     setStatus: (status) =>
       set((state) => {
         // --- DEBUG LOG ---
-        console.log(`[AuthStore] ACTION: setStatus to '${status}'`);
+        logger.log(`[AuthStore] ACTION: setStatus to '${status}'`);
         state.status = status;
       }),
   })),

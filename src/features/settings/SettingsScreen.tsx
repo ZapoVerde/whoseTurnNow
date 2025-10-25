@@ -3,8 +3,8 @@
  * @stamp {"ts":"2025-10-24T07:45:00Z"}
  * @architectural-role Feature Entry Point
  * @description
- * Renders the UI for global account management. It uses the `useAppBar` hook to
- * configure the global AppBar and adheres to all layout and accessibility standards.
+ * Renders the UI for global account management. It uses a standard, low-friction
+ * confirmation dialog for the account deletion process.
  * @core-principles
  * 1. IS the primary UI for all global user account and theme settings.
  * 2. OWNS the local UI state for the settings form and confirmation dialogs.
@@ -47,7 +47,6 @@ export const SettingsScreen: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   const [feedback, setFeedback] = useState<{
     message: string;
     severity: 'success' | 'error';
@@ -86,13 +85,14 @@ export const SettingsScreen: React.FC = () => {
         throw new Error(`Cannot delete account. You are the last admin of "${blockingGroup}". Please promote another admin or delete the group first.`);
       }
       await userRepository.deleteUserAccount();
+      // The user will be logged out automatically after deletion.
     } catch (error: any) {
       setFeedback({
         message: error.message || 'Failed to delete account.',
         severity: 'error',
       });
+      setIsDeleting(false); // Only reset on failure; on success, the component unmounts.
     } finally {
-      setIsDeleting(false);
       setIsDeleteDialogOpen(false);
     }
   };
@@ -140,15 +140,8 @@ export const SettingsScreen: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               About
             </Typography>
-            <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 'bold' }}>
-              A Simple Tool for a Simple Problem
-            </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
               "Whose Turn Now" is a lightweight, open-source utility built to answer a common question with a clean, transparent, and forgiving interface.
-              <br /><br />
-              The core principle is fairness through transparency. Every action—completing a turn, skipping, or undoing—is recorded in a permanent, timestamped log. There's no "sneaky business," just a clear, auditable history.
-              <br /><br />
-              This project is freely available and developed in the open.
             </Typography>
             <Button
               variant="outlined"
@@ -170,7 +163,7 @@ export const SettingsScreen: React.FC = () => {
               Danger Zone
             </Typography>
             <Typography variant="body2" sx={{ mb: 2 }}>
-              This action is permanent and cannot be undone.
+              Permanently delete your account and all associated data.
             </Typography>
             <Button
               variant="contained"
@@ -183,31 +176,26 @@ export const SettingsScreen: React.FC = () => {
         </Stack>
       </Box>
 
-      {/* ... Dialogs and Snackbar remain unchanged ... */}
+      {/* --- SIMPLIFIED DELETION DIALOG --- */}
       <Dialog open={isDeleteDialogOpen} onClose={() => setIsDeleteDialogOpen(false)}>
-        <DialogTitle>Are you absolutely sure?</DialogTitle>
+        <DialogTitle>Delete Account?</DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ mb: 2 }}>
-            This action cannot be undone. To confirm, please type <strong>DELETE</strong> in the box below.
+          <DialogContentText>
+            Are you sure? This action is permanent and cannot be undone.
           </DialogContentText>
-          <TextField
-            autoFocus
-            label="Type DELETE to confirm"
-            fullWidth
-            variant="outlined"
-            value={deleteConfirmationText}
-            onChange={(e) => setDeleteConfirmationText(e.target.value)}
-          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting}>Cancel</Button>
+          <Button onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting}>
+            Cancel
+          </Button>
           <Button
             onClick={handleDeleteAccount}
             color="error"
             variant="contained"
-            disabled={isDeleting || deleteConfirmationText !== 'DELETE'}
+            disabled={isDeleting}
+            autoFocus
           >
-            {isDeleting ? <CircularProgress size={24} /> : 'Confirm Deletion'}
+            {isDeleting ? <CircularProgress size={24} /> : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

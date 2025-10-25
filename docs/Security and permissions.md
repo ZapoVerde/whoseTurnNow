@@ -1,3 +1,6 @@
+
+---
+
 # "Whose Turn Now" Security & Permissions Guide
 
 This document provides a definitive overview of the data access and security model for the "Whose Turn Now" application. It explains the core philosophy of the security rules and details who can perform what actions under which conditions.
@@ -12,6 +15,13 @@ The application's security is built on a "Public Read, Gated Write" model, which
 
 3.  **History is Immutable:** The turn log is an audit trail. While new events can be added, existing log entries can never be deleted and can only be modified in one specific way: to flag a completed turn as "undone." This ensures a transparent and trustworthy history of all actions.
 
+> ### **Design Trade-off: Group Privacy & Security Through Obscurity**
+>
+> The "Public Read" model is a deliberate trade-off that prioritizes a frictionless, client-only user experience over absolute data privacy.
+>
+> *   **Risk:** This model fundamentally relies on **"security through obscurity."** If a group's unique ID (a non-guessable UUID) is ever leaked or becomes public, the group's data—including participant names, turn counts, and the full turn history—becomes accessible to **any user who is logged into the application**.
+> *   **Mitigation & Assumption:** The security of a group's data is therefore dependent on keeping its URL private. The architecture assumes that the content of the lists managed by this application is not highly sensitive. For use cases requiring strict privacy, this model would not be appropriate.
+
 ## Part II: Detailed Permissions Matrix
 
 This table breaks down the specific rules for each type of data in the Firestore database.
@@ -20,7 +30,7 @@ This table breaks down the specific rules for each type of data in the Firestore
 | :--- | :--- | :--- |
 | **User Profile** (`/users/{userId}`) |
 | `read`, `write` | The user themselves | The user's authenticated `uid` must exactly match the `userId` of the document they are trying to access. |
-| `delete` | The user themselves | This action is initiated from the client. The client performs a **gatekeeper check** first: it will block the deletion request if the user is the last remaining admin of any group to prevent orphaning. |
+| `delete` | The user themselves | This action is initiated from the client. The client performs a **gatekeeper check** first: it will block the deletion request if the user is the last remaining admin of any group to prevent orphaning. **Note:** This check is a **client-side safeguard**, not a server-side security rule. It is designed to prevent accidental data loss via the application UI. |
 | **Group Document** (`/groups/{groupId}`) |
 | `get` (read a single document) | **Any authenticated user** | The user must be logged in. This allows the invitation flow's transaction to read the group before a user officially joins. |
 | `list` (query the collection) | **Any authenticated user** | The user must be logged in. This rule is permissive to allow for flexible querying. Client-side code is responsible for applying filters (e.g., `where('participantUids', 'array-contains', userId)`) for views like the dashboard. |

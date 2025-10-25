@@ -35,6 +35,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { useAppBarStore } from '../../store/useAppBarStore';
 import { useAppStatusStore } from '../../store/useAppStatusStore';
+import { logger } from '../../utils/debug';
 
 export const MainLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ export const MainLayout: React.FC = () => {
 
   const handleReconnect = () => {
     // --- DEBUG LOG ---
-    console.log('[MainLayout] User triggered reconnect. Setting mode to "live" and reloading.');
+    logger.log('[MainLayout] User triggered reconnect. Setting mode to "live" and reloading.');
     // Set the mode back to live optimistically before reloading.
     setConnectionMode('live');
   };

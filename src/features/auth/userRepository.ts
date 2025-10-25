@@ -38,6 +38,7 @@ import { db, auth } from '../../lib/firebase';
 import type { AppUser } from './useAuthStore';
 import type { Group } from '../../types/group';
 import { groupsRepository } from '../groups/repository';
+import { logger } from '../../shared/utils/debug';
 
 /**
  * Fetches a user profile document from Firestore based on their UID.
@@ -133,7 +134,7 @@ async function deleteUserAccount(): Promise<void> {
     await deleteDoc(userDocRef);
     await deleteUser(currentUser);
   } catch (error) {
-    console.error('Error during the final stages of account deletion:', error);
+    logger.error('Error during the final stages of account deletion:', { error });
     throw error;
   }
 }

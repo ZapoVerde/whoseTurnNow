@@ -31,6 +31,7 @@ import { useNavigate } from 'react-router-dom';
 import { groupsRepository } from '../repository';
 import type { AppUser } from '../../auth/useAuthStore';
 import type { Group } from '../../../types/group';
+import { logger } from '../../../shared/utils/debug';
 
 interface GroupSettingsActionsProps {
   groupId: string | undefined;
@@ -57,7 +58,7 @@ export function useGroupSettingsActions({
         });
         setFeedback({ message: 'Group icon updated!', severity: 'success' });
       } catch (error) {
-        console.error('Failed to update group icon:', error);
+        logger.error('Failed to update group icon:', { error });
         setFeedback({ message: 'Failed to update icon.', severity: 'error' });
       }
     },
@@ -70,7 +71,7 @@ export function useGroupSettingsActions({
       await groupsRepository.deleteGroup(groupId);
       navigate('/');
     } catch (error) {
-      console.error('Failed to delete group:', error);
+      logger.error('Failed to delete group:', { error });
       setFeedback({ message: 'Failed to delete group.', severity: 'error' });
     }
   }, [groupId, navigate, setFeedback]);
@@ -81,7 +82,7 @@ export function useGroupSettingsActions({
       await groupsRepository.resetAllTurnCounts(groupId, user);
       setFeedback({ message: 'All turn counts have been reset.', severity: 'success' });
     } catch (error) {
-      console.error('Failed to reset counts:', error);
+      logger.error('Failed to reset counts:', { error });
       setFeedback({ message: 'Failed to reset counts.', severity: 'error' });
     }
   }, [groupId, user, setFeedback]);

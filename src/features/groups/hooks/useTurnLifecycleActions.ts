@@ -16,6 +16,7 @@ import { groupsRepository } from '../repository';
 import { useGroupStore } from '../useGroupStore';
 import type { AppUser } from '../../auth/useAuthStore';
 import type { Group, TurnCompletedLog, TurnParticipant } from '../../../types/group';
+import { logger } from '../../../shared/utils/debug';
 
 interface TurnLifecycleActionsProps {
   groupId: string | undefined;
@@ -64,7 +65,7 @@ export function useTurnLifecycleActions({
     try {
       await groupsRepository.completeTurnTransaction(groupId, user, participantToMoveId);
     } catch (error) {
-      console.error('Failed to complete turn:', error);
+      logger.error('Failed to complete turn:', { error });
       setFeedback({ message: 'Failed to complete turn.', severity: 'error' });
       useGroupStore.getState().setGroup(originalGroup);
     }
@@ -77,7 +78,7 @@ export function useTurnLifecycleActions({
     try {
       await groupsRepository.skipTurnTransaction(groupId, user, participantToSkipId);
     } catch (error) {
-      console.error('User failed to skip turn:', error);
+      logger.error('User failed to skip turn:', { error });
       setFeedback({ message: 'Failed to skip the turn.', severity: 'error' });
     } finally {
       setIsSubmitting(false);
@@ -91,7 +92,7 @@ export function useTurnLifecycleActions({
       await groupsRepository.undoTurnTransaction(groupId, user, undoableAction);
       setFeedback({ message: 'Last turn successfully undone.', severity: 'success' });
     } catch (error) {
-      console.error('Failed to undo turn:', error);
+      logger.error('Failed to undo turn:', { error });
       setFeedback({ message: 'Failed to undo turn.', severity: 'error' });
     } finally {
       setIsSubmitting(false);
