@@ -38,7 +38,6 @@ export const GroupDetailScreen: FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
 
-  // Single hook call to get the entire view model
   const viewModel = useGroupDetail(groupId);
   const {
     group,
@@ -52,7 +51,6 @@ export const GroupDetailScreen: FC = () => {
   } = viewModel;
 
   const appBarActions = useMemo(() => {
-    // Show the menu button if the user is a participant of any role.
     return viewModel.currentUserParticipant ? (
       <IconButton
         color="inherit"
@@ -105,16 +103,20 @@ export const GroupDetailScreen: FC = () => {
   return (
     <>
       <Stack spacing={4} sx={{ pb: 12 }}>
-        <Typography variant="h5" component="h2">
-          Up Next
-        </Typography>
-        <ParticipantList
-          participants={orderedParticipants}
-          onParticipantClick={viewModel.participantMenu.handleOpen}
-          onInviteToClaim={actions.handleTargetedInvite}
-          isAdmin={isAdmin}
-          isUserTurn={isUserTurn}
-        />
+        {/* The title and list are now in their own nested Stack */}
+        {/* with a small spacing to create the visual group. */}
+        <Stack spacing={1}>
+          <Typography variant="h5" component="h2">
+            Up Next
+          </Typography>
+          <ParticipantList
+            participants={orderedParticipants}
+            onParticipantClick={viewModel.participantMenu.handleOpen}
+            onInviteToClaim={actions.handleTargetedInvite}
+            isAdmin={isAdmin}
+            isUserTurn={isUserTurn}
+          />
+        </Stack>
         <TurnHistory turnLog={turnLog} formatLogEntry={actions.formatLogEntry} />
       </Stack>
 

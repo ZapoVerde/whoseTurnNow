@@ -22,7 +22,7 @@
  *     external_io: none # Mocks MUST prevent any actual I/O.
  */
 
-import { renderHook, } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // --- Mocks ---
@@ -34,7 +34,11 @@ vi.mock('../useGroupStore');
 vi.mock('../../auth/useAuthStore');
 vi.mock('../../../shared/store/useAppStatusStore');
 vi.mock('./useGroupDerivedState');
-vi.mock('./useGroupActions');
+// --- THIS IS THE FIX (PART 1): Mock the new, granular hooks. ---
+vi.mock('./useTurnLifecycleActions');
+vi.mock('./useMembershipActions');
+vi.mock('./useGroupSettingsActions');
+vi.mock('./useSharingActions');
 
 // --- Imports ---
 import { useGroupDetail } from './useGroupDetail';
@@ -42,7 +46,11 @@ import { useGroupStore } from '../useGroupStore';
 import { useAuthStore } from '../../auth/useAuthStore';
 import { useAppStatusStore } from '../../../shared/store/useAppStatusStore';
 import { useGroupDerivedState } from './useGroupDerivedState';
-import { useGroupActions } from './useGroupActions';
+// --- THIS IS THE FIX (PART 2): Import the new hooks to be mocked. ---
+import { useTurnLifecycleActions } from './useTurnLifecycleActions';
+import { useMembershipActions } from './useMembershipActions';
+import { useGroupSettingsActions } from './useGroupSettingsActions';
+import { useSharingActions } from './useSharingActions';
 
 // --- Test Setup ---
 const mockLoadGroupAndLog = vi.fn();
@@ -59,7 +67,6 @@ vi.mocked(useGroupStore).mockReturnValue({
 });
 vi.mocked(useAppStatusStore).mockReturnValue('live');
 vi.mocked(useGroupDerivedState).mockReturnValue({
-  // Return a dummy object with the expected shape
   currentUserParticipant: null,
   orderedParticipants: [],
   isAdmin: false,
@@ -67,13 +74,12 @@ vi.mocked(useGroupDerivedState).mockReturnValue({
   isLastAdmin: false,
   undoableAction: null,
 });
-vi.mocked(useGroupActions).mockReturnValue({
-  // Return a dummy object with the expected shape
-  isSubmitting: false,
-  feedback: null,
-  setFeedback: vi.fn(),
-  // Add other actions if they need to be tested for pass-through
-} as any);
+// --- THIS IS THE FIX (PART 3): Provide default mocks for the new hooks. ---
+vi.mocked(useTurnLifecycleActions).mockReturnValue({} as any);
+vi.mocked(useMembershipActions).mockReturnValue({} as any);
+vi.mocked(useGroupSettingsActions).mockReturnValue({} as any);
+vi.mocked(useSharingActions).mockReturnValue({} as any);
+
 
 describe('useGroupDetail Hook', () => {
   beforeEach(() => {
@@ -81,66 +87,44 @@ describe('useGroupDetail Hook', () => {
   });
 
   it('should call loadGroupAndLog on initial render with the correct groupId', () => {
-    // ARRANGE: The setup in the mock provides the initial state.
     const groupId = 'group-123';
-
-    // ACT
     renderHook(() => useGroupDetail(groupId));
-
-    // ASSERT
     expect(mockLoadGroupAndLog).toHaveBeenCalledTimes(1);
     expect(mockLoadGroupAndLog).toHaveBeenCalledWith(groupId);
   });
 
   it('should call the cleanup function on unmount', () => {
-    // ARRANGE
     const groupId = 'group-123';
     const { unmount } = renderHook(() => useGroupDetail(groupId));
-
-    // ACT
     unmount();
-
-    // ASSERT
     expect(mockCleanup).toHaveBeenCalledTimes(1);
   });
 
   it('should not call loadGroupAndLog if groupId is undefined', () => {
-    // ARRANGE: Pass undefined for the groupId.
     renderHook(() => useGroupDetail(undefined));
-
-    // ASSERT
     expect(mockLoadGroupAndLog).not.toHaveBeenCalled();
   });
 
   it('should re-trigger data loading when connectionMode changes from degraded to live', () => {
-    // ARRANGE: Start in a 'degraded' state.
     vi.mocked(useAppStatusStore).mockReturnValue('degraded');
     const { rerender } = renderHook(() => useGroupDetail('group-123'));
-
-    // ASSERT PRE-CONDITION: It should not have loaded data in degraded mode.
     expect(mockLoadGroupAndLog).not.toHaveBeenCalled();
 
-    // ACT: Simulate the app recovering and the store updating.
     vi.mocked(useAppStatusStore).mockReturnValue('live');
     rerender();
 
-    // ASSERT: Now that the connection is live, it should load the data.
     expect(mockLoadGroupAndLog).toHaveBeenCalledTimes(1);
     expect(mockLoadGroupAndLog).toHaveBeenCalledWith('group-123');
   });
 
+  // --- THIS IS THE FIX (PART 4): Update the test to reflect the new internal state management. ---
   it('should return the correctly composed view model', () => {
-    // ARRANGE: Set up rich mock return values for all dependencies.
+    // ARRANGE
     const mockDerivedState = {
       isAdmin: true,
       isUserTurn: true,
       orderedParticipants: [{ id: 'p1', name: 'Alice' }],
     };
-    const mockActions = {
-      isSubmitting: false,
-      feedback: { message: 'Success!', severity: 'success' },
-    };
-
     vi.mocked(useGroupStore).mockReturnValue({
       group: { gid: 'group-123', name: 'Test Group' } as any,
       turnLog: [{ id: 'log-1', type: 'TURN_COMPLETED' }] as any,
@@ -149,17 +133,19 @@ describe('useGroupDetail Hook', () => {
       cleanup: mockCleanup,
     });
     vi.mocked(useGroupDerivedState).mockReturnValue(mockDerivedState as any);
-    vi.mocked(useGroupActions).mockReturnValue(mockActions as any);
 
     // ACT
     const { result } = renderHook(() => useGroupDetail('group-123'));
 
-    // ASSERT: Verify that the final returned object is a correct composition.
+    // ASSERT
     expect(result.current.isLoading).toBe(false);
     expect(result.current.group?.name).toBe('Test Group');
     expect(result.current.turnLog.length).toBe(1);
-    expect(result.current.isAdmin).toBe(true); // From useGroupDerivedState
-    expect(result.current.isUserTurn).toBe(true); // From useGroupDerivedState
-    expect(result.current.feedback?.message).toBe('Success!'); // From useGroupActions
+    expect(result.current.isAdmin).toBe(true);
+    expect(result.current.isUserTurn).toBe(true);
+    // Assert that the composed actions object from the various hooks is created.
+    expect(result.current.actions).toBeDefined();
+    // Feedback is now internal state, so we just check its initial value.
+    expect(result.current.feedback).toBeNull();
   });
 });

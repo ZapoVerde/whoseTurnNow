@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/repository/groups.query.ts
- * @stamp {"ts":"2025-10-23T09:45:00Z"}
+ * @stamp {"ts":"2025-10-25T04:50:00Z"}
  * @architectural-role Data Repository (Query)
  * @description
  * Encapsulates all read-only Firestore interactions. This module implements the
@@ -40,61 +40,55 @@ import type { Group, LogEntry } from '../../../types/group';
 
 /**
  * A private helper function that implements the circuit breaker logic for any query.
+ * It is now a synchronous function that directly returns the unsubscribe handler.
  */
-async function createResilientListener<T>(
+function createResilientListener<T>(
   q: Query | DocumentReference,
   onUpdate: (data: any) => void,
   isSingleDoc: boolean = false,
-): Promise<Unsubscribe> {
+): Unsubscribe {
   const { setConnectionMode } = useAppStatusStore.getState();
 
-  return new Promise((resolve) => {
-    const unsubscribe = onSnapshot(
-      q as Query, // Cast for onSnapshot signature
-      (snapshot: any) => {
-        // --- DEBUG LOG ---
-        console.log('[CircuitBreaker] Real-time update received. Ensuring LIVE mode.');
-        setConnectionMode('live');
-        if (isSingleDoc) {
-          onUpdate(snapshot.exists() ? (snapshot.data() as T) : null);
-        } else {
-          const data = snapshot.docs.map((doc: any) => doc.data() as T);
-          onUpdate(data);
-        }
-      },
-      async (error) => {
-        console.error('[CircuitBreaker] Listener error:', error.code, error.message);
-
-        if (error.code === 'resource-exhausted') {
-          console.warn('[CircuitBreaker] TRIPPED! Degrading to static fetch.');
-          setConnectionMode('degraded');
-          
-          try {
-            const staticSnapshot = isSingleDoc 
-              ? await getDoc(q as DocumentReference) 
-              // @ts-ignore
-              : await getDocs(q);
-
-            if (isSingleDoc) {
-              // @ts-ignore
-              onUpdate(staticSnapshot.exists() ? (staticSnapshot.data() as T) : null);
-            } else {
-              // @ts-ignore
-              const data = staticSnapshot.docs.map((doc: any) => doc.data() as T);
-              onUpdate(data);
-            }
-          } catch (staticFetchError) {
-            console.error('[CircuitBreaker] Fallback static fetch also failed:', staticFetchError);
-          }
-        }
-        // For 'resource-exhausted' or other terminal errors, the listener is dead.
-        // We resolve with a no-op unsubscribe function.
-        resolve(() => {});
+  const unsubscribe = onSnapshot(
+    q as Query, // Cast for onSnapshot signature
+    (snapshot: any) => {
+      console.log('[CircuitBreaker] Real-time update received. Ensuring LIVE mode.');
+      setConnectionMode('live');
+      if (isSingleDoc) {
+        onUpdate(snapshot.exists() ? (snapshot.data() as T) : null);
+      } else {
+        const data = snapshot.docs.map((doc: any) => doc.data() as T);
+        onUpdate(data);
       }
-    );
-    // If the listener attaches successfully, resolve the promise with the real unsubscribe function.
-    resolve(unsubscribe);
-  });
+    },
+    async (error) => {
+      console.error('[CircuitBreaker] Listener error:', error.code, error.message);
+
+      if (error.code === 'resource-exhausted') {
+        console.warn('[CircuitBreaker] TRIPPED! Degrading to static fetch.');
+        setConnectionMode('degraded');
+
+        try {
+          const staticSnapshot = isSingleDoc
+            ? await getDoc(q as DocumentReference)
+            : await getDocs(q as Query);
+
+          if (isSingleDoc) {
+            // @ts-ignore
+            onUpdate(staticSnapshot.exists() ? (staticSnapshot.data() as T) : null);
+          } else {
+            // @ts-ignore
+            const data = staticSnapshot.docs.map((doc: any) => doc.data() as T);
+            onUpdate(data);
+          }
+        } catch (staticFetchError) {
+          console.error('[CircuitBreaker] Fallback static fetch also failed:', staticFetchError);
+        }
+      }
+    },
+  );
+
+  return unsubscribe;
 }
 
 export function getUserGroups(
@@ -108,9 +102,7 @@ export function getUserGroups(
     where(`participantUids.${userId}`, '==', true),
   );
   
-  let unsub: Unsubscribe = () => {};
-  createResilientListener<Group>(q, onUpdate).then(u => unsub = u);
-  return () => unsub();
+  return createResilientListener<Group>(q, onUpdate);
 }
 
 export function getGroup(
@@ -120,9 +112,7 @@ export function getGroup(
   console.log(`[getGroup] Subscribing for groupId: '${groupId}'`);
   const groupDocRef = doc(db, 'groups', groupId);
   
-  let unsub: Unsubscribe = () => {};
-  createResilientListener<Group>(groupDocRef, onUpdate, true).then(u => unsub = u);
-  return () => unsub();
+  return createResilientListener<Group>(groupDocRef, onUpdate, true);
 }
 
 export async function getGroupOnce(groupId: string): Promise<Group | null> {
@@ -143,10 +133,8 @@ export function getGroupTurnLog(
   const unsubscribe = onSnapshot(
     q,
     (querySnapshot) => {
-      // --- DEBUG LOG ---
       console.log(`[getGroupTurnLog] Real-time update received for groupId: '${groupId}'. Ensuring LIVE mode.`);
       setConnectionMode('live');
-      // This is the original, correct logic for mapping logs with their IDs.
       const logs = querySnapshot.docs.map((doc) => ({
         ...(doc.data() as LogEntry),
         id: doc.id,

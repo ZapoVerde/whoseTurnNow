@@ -113,7 +113,6 @@ export const GroupManagementDialogs: React.FC<GroupManagementDialogsProps> = ({
             />
 
             <Menu anchorEl={groupMenu.anchorEl} open={groupMenu.isOpen} onClose={groupMenu.handleClose}>
-                {/* --- THIS IS THE FIX: Admin-only actions are now wrapped --- */}
                 {isAdmin && (
                     [
                         <MenuItem key="change-icon" onClick={(e) => { groupMenu.handleClose(); iconPickerMenu.handleOpen(e); }}>Change Icon</MenuItem>,
@@ -132,7 +131,7 @@ export const GroupManagementDialogs: React.FC<GroupManagementDialogsProps> = ({
                     )}
                     {isAdmin && participantMenu.selectedParticipant.uid !== user?.uid && (
                         <>
-                            <MenuItem onClick={() => { actions.handleAdminCompleteTurn(participantMenu.selectedParticipant!.id); participantMenu.handleClose(); }}>Complete Turn</MenuItem>
+                            <MenuItem onClick={() => actions.handleAdminCompleteTurn(participantMenu.selectedParticipant!.id)}>Complete Turn</MenuItem>
                             {participantMenu.selectedParticipant.role === 'member' && participantMenu.selectedParticipant.uid !== null ? (
                                 <MenuItem onClick={() => actions.handleRoleChange('admin')}>Promote to Admin</MenuItem>
                             ) : participantMenu.selectedParticipant.role === 'admin' && (

@@ -35,6 +35,9 @@ import {
 } from 'firebase/auth';
 import { LoginScreen } from './LoginScreen';
 
+// --- Mocks ---
+vi.mock('firebase/auth');
+
 // --- Test Setup ---
 const mockSignInWithEmailAndPassword = vi.mocked(signInWithEmailAndPassword);
 const mockCreateUserWithEmailAndPassword = vi.mocked(createUserWithEmailAndPassword);

@@ -50,7 +50,7 @@ import type { AppUser } from '../auth/useAuthStore';
 // --- Test Setup ---
 const mockUseNavigate = vi.mocked(useNavigate);
 const mockUseAuthStore = vi.mocked(useAuthStore);
-const mockCreateGroup = vi.spyOn(groupsRepository, 'createGroup');
+const mockCreateGroup = vi.mocked(groupsRepository.createGroup);
 
 const mockUser: AppUser = {
   uid: 'test-user-123',

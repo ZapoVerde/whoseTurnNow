@@ -128,8 +128,19 @@ export function useGroupDetail(groupId: string | undefined) {
       ...settingsActions,
       ...sharingActions,
       formatLogEntry,
-      setFeedback, // Expose the setter for snackbar control
-      // Composed actions that also close menus
+      setFeedback,
+
+      // --- THIS IS THE FIX ---
+      handleAdminCompleteTurn: (participantId: string) => {
+        // First, close the menu to allow focus to shift.
+        participantMenuState.handleClose();
+        // Then, defer the state-changing action to the next event loop tick.
+        setTimeout(() => {
+          membershipActions.handleAdminCompleteTurn(participantId);
+        }, 50); // A small delay is sufficient to resolve the race condition.
+      },
+      // --- END FIX ---
+
       handleRoleChange: (newRole: 'admin' | 'member') => {
         if (selectedParticipant) {
           membershipActions.handleRoleChange(selectedParticipant.id, newRole);

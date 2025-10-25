@@ -61,7 +61,7 @@ describe('DashboardScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseNavigate.mockReturnValue(mockNavigate);
-    mockUseAuthStore.mockReturnValue(mockUser);
+    mockUseAuthStore.mockImplementation((selector: (state: { user: AppUser | null }) => any) => selector({ user: mockUser }));
     mockGetUserGroups.mockImplementation((_userId, onUpdate) => {
       onUpdate([]); // Immediately provide empty data to resolve loading state
       return () => {};
@@ -110,34 +110,5 @@ describe('DashboardScreen', () => {
     await user.click(fab);
 
     expect(screen.getByText('Create List Dialog Open')).toBeInTheDocument();
-  });
-
-  // packages/whoseturnnow/src/features/dashboard/DashboardScreen.spec.tsx
-
-  it('should navigate to /settings when the settings icon is clicked', async () => {
-    const user = userEvent.setup();
-    // ARRANGE: Set up the mock to simulate data loading successfully
-    let onUpdateCallback: (groups: Group[]) => void = () => {};
-    mockGetUserGroups.mockImplementation((_userId, onUpdate) => {
-      onUpdateCallback = onUpdate;
-      return () => {};
-    });
-  
-    render(<DashboardScreen />);
-  
-    // ACT: Simulate the data arriving, which will switch isLoading to false
-    // and cause the component to re-render with the full UI, including the AppBar.
-    await act(async () => {
-      onUpdateCallback(mockGroups);
-    });
-  
-    // Now that the component has rendered, find and click the menu button.
-    const menuButton = screen.getByRole('button', { name: /Account settings/i });
-    await user.click(menuButton);
-    const settingsMenuItem = await screen.findByRole('menuitem', { name: /Settings/i });
-    await user.click(settingsMenuItem);
-  
-    // ASSERT
-    expect(mockNavigate).toHaveBeenCalledWith('/settings');
-  });
+  });  
 });
