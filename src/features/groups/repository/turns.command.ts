@@ -144,10 +144,7 @@ export async function undoTurnTransaction(
         : p,
     );
 
-    // --- THIS IS THE FIX ---
-    // Re-derive the denormalized UID maps from the updated participants list.
     const { participantUids, adminUids } = _deriveUids(newParticipants);
-    // --- END FIX ---
 
     const newUndoLogRef = doc(collection(db, 'groups', groupId, 'turnLog'));
     const newUndoLogEntry: TurnUndoneLog = {
@@ -160,15 +157,12 @@ export async function undoTurnTransaction(
       _adminUids: groupData.adminUids,
     };
 
-    // --- THIS IS THE FIX ---
-    // Include the updated maps in the transaction payload.
     transaction.update(groupDocRef, {
       turnOrder: newTurnOrder,
       participants: newParticipants,
       participantUids,
       adminUids,
     });
-    // --- END FIX ---
 
     transaction.set(newUndoLogRef, newUndoLogEntry);
 
@@ -184,51 +178,50 @@ export async function undoTurnTransaction(
 * @param participantToMoveId The ID of the participant whose turn is being skipped.
 */
 export async function skipTurnTransaction(
-groupId: string,
-actor: AppUser,
-participantToMoveId: string,
+  groupId: string,
+  actor: AppUser,
+  participantToMoveId: string,
 ): Promise<void> {
-const groupDocRef = doc(db, 'groups', groupId);
+  const groupDocRef = doc(db, 'groups', groupId);
 
-await runTransaction(db, async (transaction) => {
-  const groupDoc = await transaction.get(groupDocRef);
-  if (!groupDoc.exists()) {
-    throw new Error(`Group with ID ${groupId} does not exist.`);
-  }
+  await runTransaction(db, async (transaction) => {
+    const groupDoc = await transaction.get(groupDocRef);
+    if (!groupDoc.exists()) {
+      throw new Error(`Group with ID ${groupId} does not exist.`);
+    }
 
-  const groupData = groupDoc.data() as Group;
-  const { participants, turnOrder } = groupData;
+    const groupData = groupDoc.data() as Group;
+    const { participants, turnOrder } = groupData;
 
-  const participantToMove = participants.find(
-    (p) => p.id === participantToMoveId,
-  );
-  if (!participantToMove) {
-    throw new Error(
-      `Participant with ID ${participantToMoveId} not found in group.`,
+    const participantToMove = participants.find(
+      (p) => p.id === participantToMoveId,
     );
-  }
+    if (!participantToMove) {
+      throw new Error(
+        `Participant with ID ${participantToMoveId} not found in group.`,
+      );
+    }
 
-  const newTurnOrder = [
-    ...turnOrder.filter((id) => id !== participantToMoveId),
-    participantToMoveId,
-  ];
+    const newTurnOrder = [
+      ...turnOrder.filter((id) => id !== participantToMoveId),
+      participantToMoveId,
+    ];
 
-  transaction.update(groupDocRef, {
-    turnOrder: newTurnOrder,
+    transaction.update(groupDocRef, {
+      turnOrder: newTurnOrder,
+    });
+
+    const newLogRef = doc(collection(db, 'groups', groupId, 'turnLog'));
+    const newLogEntry: TurnSkippedLog = {
+      type: 'TURN_SKIPPED',
+      completedAt: serverTimestamp(),
+      participantId: participantToMoveId,
+      participantName: participantToMove.nickname || 'Unknown',
+      actorUid: actor.uid,
+      actorName: actor.displayName || 'Unknown',
+      _participantUids: groupData.participantUids,
+      _adminUids: groupData.adminUids,
+    };
+    transaction.set(newLogRef, newLogEntry);
   });
-
-  const newLogRef = doc(collection(db, 'groups', groupId, 'turnLog'));
-  const newLogEntry: TurnSkippedLog = {
-    type: 'TURN_SKIPPED',
-    completedAt: serverTimestamp(),
-    participantId: participantToMoveId,
-    participantName: participantToMove.nickname || 'Unknown',
-    actorUid: actor.uid,
-    actorName: actor.displayName || 'Unknown',
-    _participantUids: groupData.participantUids,
-    _adminUids: groupData.adminUids,
-  };
-  transaction.set(newLogRef, newLogEntry);
-  
-});
 }

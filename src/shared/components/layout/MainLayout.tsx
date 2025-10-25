@@ -46,8 +46,6 @@ export const MainLayout: React.FC = () => {
     console.log('[MainLayout] User triggered reconnect. Setting mode to "live" and reloading.');
     // Set the mode back to live optimistically before reloading.
     setConnectionMode('live');
-    // A full page reload is the most robust way to force all listeners to re-initialize.
-    window.location.reload();
   };
 
   return (

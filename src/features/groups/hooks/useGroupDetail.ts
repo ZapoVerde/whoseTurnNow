@@ -130,16 +130,13 @@ export function useGroupDetail(groupId: string | undefined) {
       formatLogEntry,
       setFeedback,
 
-      // --- THIS IS THE FIX ---
       handleAdminCompleteTurn: (participantId: string) => {
-        // First, close the menu to allow focus to shift.
+        // Close the menu. This state change is queued.
         participantMenuState.handleClose();
-        // Then, defer the state-changing action to the next event loop tick.
-        setTimeout(() => {
-          membershipActions.handleAdminCompleteTurn(participantId);
-        }, 50); // A small delay is sufficient to resolve the race condition.
+        // Immediately call the action. This state change is also queued.
+        // React will batch these updates efficiently.
+        membershipActions.handleAdminCompleteTurn(participantId);
       },
-      // --- END FIX ---
 
       handleRoleChange: (newRole: 'admin' | 'member') => {
         if (selectedParticipant) {

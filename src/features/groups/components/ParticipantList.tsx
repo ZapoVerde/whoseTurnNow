@@ -3,13 +3,13 @@
  * @stamp {"ts":"2025-10-25T08:10:00Z"}
  * @architectural-role UI Component
  * @description
- * Renders the ordered list of participants. It now uses a theme-compliant
- * combination of a higher-elevation shadow and a thick, colored border to
- * prominently highlight the "Up Next" participant.
+ * Renders the ordered list of participants. It uses a prominent style for the
+ * "Up Next" participant and a secondary highlight for the current user's row
+ * to aid in self-location.
  * @core-principles
  * 1. IS a pure, presentational ("dumb") component.
  * 2. MUST use a prominent, high-contrast style to distinguish the next participant.
- * 3. MUST use only properties from the central theme object for all styling.
+ * 3. MUST use a secondary highlight to identify the current user's row.
  * @api-declaration
  *   - default: The ParticipantList React functional component.
  * @contract
@@ -33,6 +33,7 @@ import type { TurnParticipant } from '../../../types/group';
 
 interface ParticipantListProps {
   participants: TurnParticipant[];
+  currentUserParticipantId?: string; 
   onParticipantClick: (
     event: MouseEvent<HTMLDivElement>,
     participant: TurnParticipant,
@@ -44,6 +45,7 @@ interface ParticipantListProps {
 
 export const ParticipantList: FC<ParticipantListProps> = ({
   participants,
+  currentUserParticipantId, 
   onParticipantClick,
   onInviteToClaim,
   isAdmin,
@@ -51,17 +53,13 @@ export const ParticipantList: FC<ParticipantListProps> = ({
 }) => {
   const theme = useTheme();
 
-  // Guard against an empty list to prevent errors.
   if (participants.length === 0) {
     return null;
   }
 
-  // Separate the "Up Next" participant from the rest of the list.
   const [firstParticipant, ...remainingParticipants] = participants;
 
   return (
-    // 1. The OUTER Stack now creates the large gap between the first card
-    //    and the block of remaining cards.
     <Stack spacing={4}>
       {/* --- Block 1: The "Up Next" Card --- */}
       <Card
@@ -107,14 +105,17 @@ export const ParticipantList: FC<ParticipantListProps> = ({
 
       {/* --- Block 2: The Stack of Remaining Cards --- */}
       {remainingParticipants.length > 0 && (
-        // 2. The INNER Stack maintains the small, uniform 8px gap for the rest of the list.
         <Stack spacing={1}>
           {remainingParticipants.map((participant) => (
             <Card
               key={participant.id}
               sx={{
                 boxShadow: theme.shadows[1],
-                border: `1px solid ${theme.palette.divider}`,
+                border: `1px solid ${
+                  participant.id === currentUserParticipantId
+                    ? theme.palette.primary.main
+                    : theme.palette.divider
+                }`,
               }}
             >
               <ListItemButton

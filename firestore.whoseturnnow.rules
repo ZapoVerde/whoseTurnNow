@@ -3,14 +3,12 @@ rules_version = '2';
 // =====================================================================
 // ARCHITECTURAL NOTE: Public Read, Gated Write Model
 //
-// This ruleset has been intentionally simplified to a "public read" model
-// to resolve the transactional deadlock inherent in a client-only architecture
-// with strict read permissions.
+// This ruleset implements a "public read" model to support the client-only
+// architecture and its invitation flows.
 //
-// - ANY authenticated user can READ a group's data if they have the URL.
-//   This is an acceptable trade-off as the data is low-sensitivity and
-//   group IDs are non-guessable.
-// - ALL WRITE operations (create, update, delete) remain strictly gated by
+// - ANY authenticated user can READ a group's data if they have the direct link.
+//   Privacy is maintained by the non-guessable nature of group IDs.
+// - ALL WRITE operations (create, update, delete) are strictly gated by
 //   membership and role, preserving data integrity.
 // =====================================================================
 
@@ -21,38 +19,50 @@ service cloud.firestore {
     // SECTION 1: CORE HELPER FUNCTIONS
     // =====================================================================
 
-    function isAuthenticated() { return request.auth != null; }
+    // Verifies that a user is signed in.
+    function isAuthenticated() {
+      return request.auth != null;
+    }
 
+    // Verifies if the requesting user is listed as a participant.
     function isMember(groupData) {
       return request.auth.uid in groupData.participantUids;
     }
 
+    // Verifies if the requesting user is listed as an admin.
     function isAdmin(groupData) {
       return request.auth.uid in groupData.adminUids;
     }
 
-    // This function is now correctly used ONLY for sub-collections.
+    // Verifies the requesting user is a member of the parent group document.
+    // Used by sub-collection rules to securely reference the parent.
     function isMemberOfParentGroup(groupId) {
       let groupData = get(/databases/$(database)/documents/groups/$(groupId)).data;
       return isMember(groupData);
     }
-    
+
+    // Checks if an update operation is removing the current user from the group.
     function isLeavingGroup() {
       return isMember(resource.data) && !isMember(request.resource.data);
     }
 
+    // Checks if an update operation is adding the current user to the group.
     function isJoiningGroup() {
       return !isMember(resource.data) && isMember(request.resource.data);
     }
     
+    // Enforces the "Last Admin Rule" by ensuring at least one admin remains.
     function lastAdminRuleIsSatisfied() {
       return request.resource.data.adminUids.size() >= 1;
     }
 
+    // Checks if a write is only for turn-taking or membership changes,
+    // preventing members from changing group settings like name or icon.
     function isOnlyModifyingMembership() {
       return request.writeFields.hasOnly(['participants', 'turnOrder', 'participantUids', 'adminUids']);
     }
 
+    // Validates the shape of a newly created group to ensure its integrity.
     function isValidNewGroup() {
       let group = request.resource.data;
       let creatorUid = request.auth.uid;
@@ -69,35 +79,40 @@ service cloud.firestore {
     // =====================================================================
 
     match /users/{userId} {
+      // A user can only read or write their own profile document.
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
     match /groups/{groupId} {
+      // Any authenticated user can read group data.
       allow get, list: if isAuthenticated();
       
+      // A user can create a group if it's correctly formed with them as the first admin.
       allow create: if isAuthenticated() && isValidNewGroup();
 
+      // A user can update a group under specific, role-based conditions.
       allow update: if (isAdmin(resource.data) && lastAdminRuleIsSatisfied())
                       || isJoiningGroup()
                       || (isLeavingGroup() && lastAdminRuleIsSatisfied() && isOnlyModifyingMembership())
                       || (isMember(resource.data) && isOnlyModifyingMembership());
                       
+      // Only an admin of the group can delete it.
       allow delete: if isAdmin(get(/databases/$(database)/documents/groups/$(groupId)).data);
       
+      // --- Sub-collection for the immutable turn log ---
       match /turnLog/{logId} {
-        // Allow any authenticated user to read the log, which fixes the initial listener error.
+        // Any authenticated user can read the log, consistent with the parent group.
         allow read: if isAuthenticated();
 
-        // Allow a user to create a log entry if their UID is in the participant list
-        // being submitted with the new log. This avoids the 'get()' deadlock.
-        allow create: if request.auth.uid in request.resource.data._participantUids;
+        // Allow log creation only if the user is a verified member of the parent group.
+        allow create: if isMemberOfParentGroup(groupId);
 
         // Allow an admin to update a log entry for the Undo feature.
-        allow update: if (request.auth.uid in resource.data._adminUids)
+        allow update: if (isAdmin(get(/databases/$(database)/documents/groups/$(groupId)).data))
                       && request.resource.data.isUndone == true
                       && (!('isUndone' in resource.data) || resource.data.isUndone == false);
 
-        // Explicitly forbid deleting log entries.
+        // Log entries are immutable and can never be deleted.
         allow delete: if false;
       }
     }

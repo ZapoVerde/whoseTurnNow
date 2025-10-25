@@ -96,7 +96,6 @@ export const App: React.FC = () => {
           // --- DEBUG LOG ---
           console.log('[App] Tab became visible in degraded mode. Attempting to reconnect...');
           setConnectionMode('live');
-          window.location.reload();
         }
       }
     };

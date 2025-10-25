@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/repository/groups.query.ts
- * @stamp {"ts":"2025-10-25T04:50:00Z"}
+ * @stamp {"ts":"2025-10-23T09:45:00Z"}
  * @architectural-role Data Repository (Query)
  * @description
  * Encapsulates all read-only Firestore interactions. This module implements the
@@ -38,9 +38,10 @@ import { db } from '../../../lib/firebase';
 import { useAppStatusStore } from '../../../shared/store/useAppStatusStore';
 import type { Group, LogEntry } from '../../../types/group';
 
+const FIREBASE_RESOURCE_EXHAUSTED = 'resource-exhausted';
+
 /**
  * A private helper function that implements the circuit breaker logic for any query.
- * It is now a synchronous function that directly returns the unsubscribe handler.
  */
 function createResilientListener<T>(
   q: Query | DocumentReference,
@@ -52,6 +53,7 @@ function createResilientListener<T>(
   const unsubscribe = onSnapshot(
     q as Query, // Cast for onSnapshot signature
     (snapshot: any) => {
+      // --- DEBUG LOG ---
       console.log('[CircuitBreaker] Real-time update received. Ensuring LIVE mode.');
       setConnectionMode('live');
       if (isSingleDoc) {
@@ -64,14 +66,15 @@ function createResilientListener<T>(
     async (error) => {
       console.error('[CircuitBreaker] Listener error:', error.code, error.message);
 
-      if (error.code === 'resource-exhausted') {
+      if (error.code === FIREBASE_RESOURCE_EXHAUSTED) {
         console.warn('[CircuitBreaker] TRIPPED! Degrading to static fetch.');
         setConnectionMode('degraded');
-
+        
         try {
-          const staticSnapshot = isSingleDoc
-            ? await getDoc(q as DocumentReference)
-            : await getDocs(q as Query);
+          const staticSnapshot = isSingleDoc 
+            ? await getDoc(q as DocumentReference) 
+            // @ts-ignore
+            : await getDocs(q);
 
           if (isSingleDoc) {
             // @ts-ignore
@@ -85,7 +88,7 @@ function createResilientListener<T>(
           console.error('[CircuitBreaker] Fallback static fetch also failed:', staticFetchError);
         }
       }
-    },
+    }
   );
 
   return unsubscribe;
@@ -133,6 +136,7 @@ export function getGroupTurnLog(
   const unsubscribe = onSnapshot(
     q,
     (querySnapshot) => {
+      // --- DEBUG LOG ---
       console.log(`[getGroupTurnLog] Real-time update received for groupId: '${groupId}'. Ensuring LIVE mode.`);
       setConnectionMode('live');
       const logs = querySnapshot.docs.map((doc) => ({
@@ -144,7 +148,7 @@ export function getGroupTurnLog(
     async (error) => {
       console.error(`[getGroupTurnLog listener] FAILED for groupId '${groupId}'. Code: ${error.code}`, error.message);
 
-      if (error.code === 'resource-exhausted') {
+      if (error.code === FIREBASE_RESOURCE_EXHAUSTED) {
         console.warn(`[getGroupTurnLog] TRIPPED for groupId '${groupId}'! Degrading to static fetch.`);
         setConnectionMode('degraded');
         
