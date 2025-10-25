@@ -1,23 +1,22 @@
-// ----- packages/whoseturnnow/src/features/groups/hooks/useGroupDerivedState.ts -----
 /**
  * @file packages/whoseturnnow/src/features/groups/hooks/useGroupDerivedState.ts
  * @architectural-role Hook
  * @description
  * The "Brain" of the Group Detail feature. It is a pure, stateless hook that
- * encapsulates all complex business logic derivations. It takes raw data as
- * input and returns a calculated view model of the group's current state.
+ * encapsulates all complex business logic derivations, including the now-corrected
+ * logic for enforcing a strict three-turn undo limit.
  *
  * @core-principles
  * 1. IS a pure, deterministic function of its inputs (group, user, turnLog).
  * 2. OWNS all business logic calculations (e.g., 'isAdmin', 'isUserTurn', 'undoableAction').
- * 3. MUST NOT contain any side effects, action handlers, or UI state.
+ * 3. MUST strictly limit the undo capability to the three most recent completed turns.
  *
  * @api-declaration
  *   - useGroupDerivedState: The exported hook function.
  *
  * @contract
  *   assertions:
- *     purity: pure # deeply pure; depends ONLY on props, no internal state.
+ *     purity: pure
  *     state_ownership: none
  *     external_io: none
  */
@@ -31,71 +30,63 @@ export function useGroupDerivedState(
   user: AppUser | null,
   turnLog: (LogEntry & { id: string })[]
 ) {
-  // 1. Identify the current user's participant record (used by most other checks)
   const currentUserParticipant = useMemo(() => {
     if (!user || !group) return null;
     return group.participants.find((p) => p.uid === user.uid) || null;
   }, [user, group]);
 
-  // 2. Calculate the basic role booleans
   const isAdmin = currentUserParticipant?.role === 'admin';
 
-  // 3. Calculate the ordered list of participants for rendering the queue
   const orderedParticipants = useMemo(() => {
     if (!group) return [];
     
-    // --- THIS IS THE FIX ---
-    // Create a "hydrated" list of participants that substitutes the current
-    // user's (potentially stale) nickname with their fresh global displayName.
     const hydratedParticipants = group.participants.map(p => {
-      // If this participant is the currently logged-in user...
       if (user && p.uid === user.uid) {
-        // ...return a new object with their fresh global name.
         return { ...p, nickname: user.displayName || p.nickname };
       }
-      // Otherwise, return the participant as-is.
       return p;
     });
-    // --- END FIX ---
 
     return group.turnOrder
-      // Use the hydrated list to find the participants
       .map((pid) => hydratedParticipants.find((p) => p.id === pid))
       .filter((p): p is TurnParticipant => !!p);
-  }, [group, user]); // Add `user` to the dependency array
+  }, [group, user]);
 
-  // 4. Determine if it is currently the user's turn
   const isUserTurn = useMemo(() => {
     if (!currentUserParticipant || orderedParticipants.length === 0) return false;
-    // The user is "up next" if their ID matches the first ID in the ordered queue.
     return orderedParticipants[0].id === currentUserParticipant.id;
   }, [currentUserParticipant, orderedParticipants]);
 
-  // 5. "Last Admin" Safety Check: Is the current user the ONLY admin left?
   const isLastAdmin = useMemo(() => {
     if (!group || !isAdmin) return false;
     return group.participants.filter((p) => p.role === 'admin').length === 1;
   }, [group, isAdmin]);
 
-  // 6. Complex Logic: Find the most recent action this user is allowed to Undo.
-  // ... (rest of the hook remains unchanged) ...
   const undoableAction = useMemo(() => {
     if (!user || !group || !turnLog) return null;
-  
-    const completableLogs = turnLog.filter(
+
+    // --- THIS IS THE FIX ---
+    // 1. Get ALL completed logs from the history, sorted with the most recent first.
+    const allCompletedLogs = turnLog.filter(
       (log): log is TurnCompletedLog & { id: string } =>
-        log.type === 'TURN_COMPLETED' && !log.isUndone
+        log.type === 'TURN_COMPLETED'
     );
-  
-    for (const log of completableLogs.slice(0, 3)) {
-      // This logic is now simplified to align with the strict Firestore security rule.
-      // Only an admin can perform an undo operation.
-      if (isAdmin) {
-        return log;
-      }
+
+    // 2. Establish a fixed window of only the THREE most recent completed turns.
+    const recentTurnWindow = allCompletedLogs.slice(0, 3);
+
+    // 3. From within that fixed window, find the most recent log that is NOT already undone.
+    const logToUndo = recentTurnWindow.find(log => !log.isUndone);
+    // --- END FIX ---
+
+    // 4. Check permissions and return the result.
+    // The security rule has been updated; only admins can undo.
+    if (logToUndo && isAdmin) {
+      return logToUndo;
     }
+
     return null;
-  }, [turnLog, group, isAdmin]);
+  }, [turnLog, group, user, isAdmin]);
 
   return {
     currentUserParticipant,
