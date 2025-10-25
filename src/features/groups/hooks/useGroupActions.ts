@@ -136,10 +136,7 @@ export function useGroupActions({
 
     if (!participantToMoveId) return;
 
-    // 1. Capture the current state for potential rollback.
     const originalGroup = group;
-
-    // 2. Create the expected new state.
     const newTurnOrder = [
       ...originalGroup.turnOrder.filter((id) => id !== participantToMoveId),
       participantToMoveId,
@@ -148,14 +145,12 @@ export function useGroupActions({
       p.id === participantToMoveId ? { ...p, turnCount: p.turnCount + 1 } : p
     );
 
-    // 3. Optimistically update the UI instantly.
     useGroupStore.getState().setGroup({
       ...originalGroup,
       turnOrder: newTurnOrder,
       participants: newParticipants,
     });
 
-    // 4. Send the actual request to Firestore in the background.
     try {
       await groupsRepository.completeTurnTransaction(
         groupId,
@@ -163,22 +158,31 @@ export function useGroupActions({
         participantToMoveId
       );
     } catch (error) {
-      // 5. If it fails, roll back the UI and show an error.
       console.error('Failed to complete turn:', error);
       setFeedback({ message: 'Failed to complete turn.', severity: 'error' });
-      // Revert to the original state.
       useGroupStore.getState().setGroup(originalGroup);
     }
   }, [groupId, user, currentUserParticipant, group, isUserTurn, orderedParticipants]);
 
   const handleAdminCompleteTurn = useCallback(
     async (participantId: string) => {
-      if (!groupId || !user) return;
-      // --- DEBUG LOG ---
-      console.log(
-        `[AdminAction] Admin '${user.uid}' is completing turn for participant '${participantId}'`,
+      if (!groupId || !user || !group) return;
+
+      const originalGroup = group;
+      const newTurnOrder = [
+        ...originalGroup.turnOrder.filter((id) => id !== participantId),
+        participantId,
+      ];
+      const newParticipants = originalGroup.participants.map((p) =>
+        p.id === participantId ? { ...p, turnCount: p.turnCount + 1 } : p,
       );
-      setIsSubmitting(true);
+
+      useGroupStore.getState().setGroup({
+        ...originalGroup,
+        turnOrder: newTurnOrder,
+        participants: newParticipants,
+      });
+
       try {
         await groupsRepository.completeTurnTransaction(
           groupId,
@@ -191,21 +195,16 @@ export function useGroupActions({
           message: 'Failed to complete the turn.',
           severity: 'error',
         });
-      } finally {
-        setIsSubmitting(false);
+        useGroupStore.getState().setGroup(originalGroup);
       }
     },
-    [groupId, user],
+    [groupId, user, group],
   );
 
   const handleSkipTurn = useCallback(async () => {
     if (!groupId || !user || orderedParticipants.length === 0) return;
 
     const participantToSkipId = orderedParticipants[0].id;
-    // --- DEBUG LOG ---
-    console.log(
-      `[Action] User '${user.uid}' is skipping turn for participant '${participantToSkipId}'`,
-    );
     setIsSubmitting(true);
     try {
       await groupsRepository.skipTurnTransaction(
@@ -301,10 +300,8 @@ export function useGroupActions({
           log.actorUid !== log.participantId ? ` by ${log.actorName}` : '';
         return `${log.participantName}'s turn was completed${byActor}.`;
       
-      // --- THIS IS THE NEW CASE ---
       case 'TURN_SKIPPED':
         return `${log.participantName} skipped their turn.`;
-      // --- END NEW CASE ---
 
       case 'COUNTS_RESET':
         return `All turn counts were reset by ${log.actorName}.`;

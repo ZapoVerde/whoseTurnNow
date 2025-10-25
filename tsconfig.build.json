@@ -1,8 +1,8 @@
 {
-    "extends": "./tsconfig.json",
-    "exclude": [
-      "**/*.spec.ts",
-      "**/*.spec.tsx",
-      "vitest.setup.ts"
-    ]
-  }
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "vitest.setup.ts"
+  ]
+}

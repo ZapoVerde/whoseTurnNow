@@ -25,7 +25,7 @@
  */
 
 import { createTheme, responsiveFontSizes, type Theme } from '@mui/material';
-import { TOKENS, SHADOWS, RADII, Z_INDEX, BORDER_WIDTHS } from './tokens';
+import { TOKENS, SHADOWS, RADII, Z_INDEX } from './tokens';
 import { getComponentOverrides } from './overrides';
 import type { Density } from './index';
 
@@ -39,7 +39,6 @@ function densityScale(density: Density) {
   if (density === 'compact') {
     return {
       controlMinHeight: 36,
-      // UPDATED: Enforce a 44px minimum for icon buttons to meet accessibility guidelines.
       iconButtonSize: 44,
       inputPaddingY: 0.75,
       radius: RADII.medium,
@@ -96,14 +95,10 @@ export function baseTheme(
         secondary: isLight ? t.lightTextSecondary : t.darkTextSecondary,
       },
       divider: isLight ? t.dividerLight : t.dividerDark,
-      pinnedEntity: { main: isLight ? t.pinnedLight : t.pinnedDark },
-      chipBackground: { main: isLight ? t.chipBgLight : t.chipBgDark },
-      frostedSurface: { light: t.frostedLight, dark: t.frostedDark },
       surface: { canvas: bgDefault, panel: bgPaper, card: bgPaper },
     },
     shape: {
       borderRadius: d.radius,
-      borderWidths: BORDER_WIDTHS, 
     },
     spacing: 8 * d.spacingFactor,
     shadows: SHADOWS as Theme['shadows'],
@@ -145,17 +140,11 @@ export function leakTheme(kind: 'white' | 'black', density: Density): Theme {
       background: { default: base, paper: base },
       text: { primary: base, secondary: base, disabled: base },
       divider: base,
-      pinnedEntity: { main: base },
-      chipBackground: { main: base },
-      frostedSurface: { light: base, dark: base },
       surface: { canvas: base, panel: base, card: base },
     },
     shape: { borderRadius: d.radius },
     spacing: 8 * d.spacingFactor,
-    // --- THIS IS THE FIX ---
-    // Replaced `any` with the specific type from the MUI Theme definition.
     shadows: SHADOWS as Theme['shadows'],
-    // --- END FIX ---
     components: {
       MuiCssBaseline: {
         styleOverrides: {

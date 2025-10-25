@@ -6,7 +6,7 @@
  * @description
  * This is the public-facing entry point for the application's theming system. It
  * exports the main `getAppTheme` factory function, type definitions, and handles
- * MUI module augmentation for custom theme properties like palette and shape.
+ * MUI module augmentation for custom theme properties.
  *
  * @core-principles
  * 1. IS the single, public facade for the entire theming system.
@@ -15,8 +15,7 @@
  *
  * @api-declaration
  *   - getAppTheme: The primary factory function to generate a theme.
- *   - Performs module augmentation on MUI's `Palette`, `PaletteOptions`, `Shape`,
- *     and `ShapeOptions` interfaces.
+ *   - Performs module augmentation on MUI's `Palette` and `PaletteOptions` interfaces.
  *
  * @contract
  *   assertions:
@@ -25,26 +24,14 @@
  *     external_io: none
  */
 
-
-import type { Theme } from '@mui/material';
 import { baseTheme, leakTheme } from './theme';
+import type { Theme } from '@mui/material';
 
 // ============================================================================
 // Global Theme Configuration Constants
 // ============================================================================
 
-/**
- * Hard override for leak checks.
- * "normal" → UI controls choose light/dark.
- * "leakcheck_light" / "leakcheck_dark" → Force pure white/black to spot unthemed components.
- */
 const HARD_OVERRIDE: 'normal' | 'leakcheck_light' | 'leakcheck_dark' = 'normal';
-
-/**
- * Surface style for dark mode.
- * 'contrast' → Keeps a lighter "paper" surface (#1E1E1E) over the canvas (#121212).
- * 'flat' → Makes paper equal to canvas, removing the grey panel look.
- */
 const SURFACE_STYLE: 'contrast' | 'flat' = 'contrast';
 
 // ============================================================================
@@ -53,6 +40,17 @@ const SURFACE_STYLE: 'contrast' | 'flat' = 'contrast';
 
 export type Density = 'comfortable' | 'compact';
 export type AppMode = 'light' | 'dark' | 'leak-white' | 'leak-black';
+
+// Extend the Palette type to include our custom semantic colors so they can be
+// accessed via `theme.palette.*` and receive TypeScript autocompletion.
+declare module '@mui/material/styles' {
+  interface Palette {
+    surface: { canvas: string; panel: string; card: string };
+  }
+  interface PaletteOptions {
+    surface?: { canvas: string; panel: string; card: string };
+  }
+}
 
 // ============================================================================
 // Public Theme Factory Function

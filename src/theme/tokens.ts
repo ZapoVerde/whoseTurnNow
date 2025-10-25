@@ -5,8 +5,8 @@
  *
  * @description
  * This file is the single source of truth for all primitive design values.
- * It defines static colors, shadows, radii, border widths, transitions, and
- * z-index layers used to construct the application's theme.
+ * It defines static colors, shadows, radii, transitions, and z-index layers
+ * used to construct the application's theme.
  *
  * @core-principles
  * 1. IS the canonical source for all raw styling values.
@@ -17,7 +17,6 @@
  *   - TOKENS: Constant object for raw color values.
  *   - SHADOWS: Array of box-shadow strings for elevation.
  *   - RADII: Constant object for border-radius values.
- *   - BORDER_WIDTHS: Constant object for border width values.
  *   - TRANSITIONS: Constant object for CSS transition properties.
  *   - Z_INDEX: Constant object for z-index layering.
  *
@@ -32,14 +31,14 @@
 export const TOKENS = {
   // Light Mode Colors
   lightBgDefault: '#F8F9FA',
-  lightBgPaper: '#F8F9FA', 
+  lightBgPaper: '#F8F9FA',
   lightTextPrimary: '#212529',
   lightTextSecondary: '#495057',
   dividerLight: '#DEE2E6',
 
   // Dark Mode Colors
   darkBgDefault: '#212529',
-  darkBgPaper: '#495057', 
+  darkBgPaper: '#495057',
   darkTextPrimary: '#F8F9FA',
   darkTextSecondary: '#DEE2E6',
   dividerDark: '#495057',
@@ -49,17 +48,8 @@ export const TOKENS = {
   primaryDark: '#DEE2E6', // Light grey for contrast in dark mode
   secondaryLight: '#FFC107', // Vivid Yellow Accent
   secondaryDark: '#FFC107', // Vivid Yellow works in both modes
-
-  // Semantic Colors (Simplified for the new palette)
-  pinnedLight: 'rgba(73, 80, 87, 0.85)', 
-  pinnedDark: 'rgba(222, 226, 230, 0.40)',
-  chipBgLight: 'rgba(255, 255, 255, 0.70)',
-  chipBgDark: 'rgba(0, 0, 0, 0.40)',
-  frostedLight: 'rgba(248, 249, 250, 0.8)',
-  frostedDark: 'rgba(33, 37, 41, 0.6)',
 };
 
-// SHADOWS, RADII, TRANSITIONS, and Z_INDEX remain unchanged as they are not color-dependent.
 export const SHADOWS = [
   'none',
   '0 1px 1px rgba(0,0,0,0.12)',
@@ -89,14 +79,9 @@ export const SHADOWS = [
 ];
 
 export const RADII = {
-  small: 8, 
-  medium: 12, 
-  large: 16, 
-};
-
-export const BORDER_WIDTHS = {
-  standard: 1,
-  highlight: 2,
+  small: 8,
+  medium: 12,
+  large: 16,
 };
 
 export const TRANSITIONS = {

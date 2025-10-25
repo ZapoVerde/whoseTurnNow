@@ -20,7 +20,7 @@
  */
 
 import { type FC, type MouseEvent } from 'react';
-import { useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material';
 import Stack from '@mui/material/Stack';
 import Card from '@mui/material/Card';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -59,14 +59,16 @@ export const ParticipantList: FC<ParticipantListProps> = ({
             index === 0
               ? {
                   boxShadow: theme.shadows[8],
-                  border: `${theme.shape.borderWidths.highlight}px solid ${
+                  // The highlight border is now a hardcoded 2px.
+                  border: `2px solid ${
                     isUserTurn ? theme.palette.secondary.main : theme.palette.primary.main
                   }`,
                   mb: 2,
                 }
               : {
                   boxShadow: theme.shadows[1],
-                  border: `${theme.shape.borderWidths.standard}px solid ${theme.palette.divider}`,
+                  // The standard border is now a hardcoded 1px.
+                  border: `1px solid ${theme.palette.divider}`,
                   mb: 0,
                 }
           }

@@ -19,7 +19,7 @@
  * 2. MUST enforce the use of CSS variables for final component styling.
  * 3. MUST be a pure function that derives styles from the theme object and its parameters.
  */
-import type { Theme } from '@mui/material/styles';
+import type { Theme } from '@mui/material';
 import type { Density } from './index';
 
 // A helper type for the object returned by densityScale
