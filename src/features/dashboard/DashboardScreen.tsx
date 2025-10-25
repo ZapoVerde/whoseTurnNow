@@ -118,14 +118,19 @@ export const DashboardScreen: FC = () => {
               const isMyTurn = nextParticipant?.uid === user?.uid;
 
               return (
-              <Card 
-                key={group.gid}
-                sx={{
-                  boxShadow: isMyTurn
-                    ? (theme) => `0 0 8px 2px ${theme.palette.secondary.main}`
-                    : undefined,
-                }}
-              >
+                <Card
+                  key={group.gid}
+                  sx={{
+                    // Apply a standard, subtle shadow to all cards for elevation.
+                    boxShadow: (theme) => theme.shadows[1],
+                    // Now, conditionally apply the border style.
+                    border: isMyTurn
+                      // If it's the user's turn, apply the thick, secondary color border.
+                      ? (theme) => `2px solid ${theme.palette.secondary.main}`
+                      // Otherwise, apply the standard, thin divider border.
+                      : (theme) => `1px solid ${theme.palette.divider}`,
+                  }}
+                >
             <ListItem disablePadding>
               <ListItemButton 
                 onClick={() => navigate(`/group/${group.gid}`)}

@@ -82,6 +82,7 @@ type GroupManagementDialogsProps = Pick<
   | 'user'
   | 'isAdmin'
   | 'isLastAdmin'
+  | 'isSubmitting' // <-- FIX 1: Add isSubmitting to the type
 >;
 
 // The single, exported component
@@ -99,7 +100,8 @@ export const GroupManagementDialogs: React.FC<GroupManagementDialogsProps> = ({
     undoableAction,
     user,
     isAdmin,
-    isLastAdmin
+    isLastAdmin,
+    isSubmitting, // <-- FIX 2: Destructure the isSubmitting prop
 }) => {
     return (
         <>
@@ -107,7 +109,7 @@ export const GroupManagementDialogs: React.FC<GroupManagementDialogsProps> = ({
                 open={addParticipantDialog.isOpen}
                 onClose={addParticipantDialog.handleClose}
                 onConfirm={actions.handleAddParticipant}
-                isSubmitting={actions.isSubmitting}
+                isSubmitting={isSubmitting} // <-- FIX 3: Pass the correct prop
             />
 
             <Menu anchorEl={groupMenu.anchorEl} open={groupMenu.isOpen} onClose={groupMenu.handleClose}>

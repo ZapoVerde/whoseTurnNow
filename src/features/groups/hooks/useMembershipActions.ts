@@ -31,10 +31,11 @@
 
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
 import { groupsRepository } from '../repository';
 import { useGroupStore } from '../useGroupStore';
 import type { AppUser } from '../../auth/useAuthStore';
-import type { Group } from '../../../types/group';
+import type { Group, TurnParticipant } from '../../../types/group';
 
 interface MembershipActionsProps {
   groupId: string | undefined;
@@ -55,24 +56,40 @@ export function useMembershipActions({
 
   const handleAddParticipant = useCallback(
     async (name: string) => {
-      if (!groupId) return;
-      setIsSubmitting(true);
+      if (!groupId || !group) return;
+
+      const originalGroup = group;
+      const optimisticParticipant: TurnParticipant = {
+        id: uuidv4(),
+        uid: null,
+        nickname: name,
+        role: 'member',
+        turnCount: 0,
+      };
+
+      const newParticipants = [...originalGroup.participants, optimisticParticipant];
+      const newTurnOrder = [...originalGroup.turnOrder, optimisticParticipant.id];
+
+      useGroupStore.getState().setGroup({
+        ...originalGroup,
+        participants: newParticipants,
+        turnOrder: newTurnOrder,
+      });
+
       try {
         await groupsRepository.addManagedParticipant(groupId, name);
       } catch (error) {
         console.error('Failed to add participant:', error);
         setFeedback({ message: 'Failed to add participant.', severity: 'error' });
-      } finally {
-        setIsSubmitting(false);
+        useGroupStore.getState().setGroup(originalGroup);
       }
     },
-    [groupId, setIsSubmitting, setFeedback],
+    [groupId, group, setFeedback],
   );
 
   const handleRoleChange = useCallback(
     async (participantId: string, newRole: 'admin' | 'member') => {
       if (!groupId) return;
-      // Note: This is a fast operation, so we don't set isSubmitting for a better UX.
       try {
         await groupsRepository.updateParticipantRole(groupId, participantId, newRole);
       } catch (error) {
@@ -86,26 +103,33 @@ export function useMembershipActions({
   const handleRemoveParticipant = useCallback(
     async (participantId: string) => {
       if (!groupId) return;
+      // --- FIX: Implement loading state for this destructive action ---
+      setIsSubmitting(true);
       try {
         await groupsRepository.removeParticipant(groupId, participantId);
       } catch (error) {
         console.error('Failed to remove participant:', error);
         setFeedback({ message: 'Failed to remove participant.', severity: 'error' });
+      } finally {
+        setIsSubmitting(false);
       }
     },
-    [groupId, setFeedback],
+    [groupId, setFeedback, setIsSubmitting],
   );
 
   const handleLeaveGroup = useCallback(async () => {
     if (!groupId || !user) return;
+    // --- FIX: Implement loading state for this destructive, navigating action ---
+    setIsSubmitting(true);
     try {
       await groupsRepository.leaveGroup(groupId, user.uid);
       navigate('/');
     } catch (error) {
       console.error('Failed to leave group:', error);
       setFeedback({ message: 'Failed to leave group.', severity: 'error' });
+      setIsSubmitting(false); // Only set to false on error, otherwise we navigate away
     }
-  }, [groupId, user, navigate, setFeedback]);
+  }, [groupId, user, navigate, setFeedback, setIsSubmitting]);
 
   const handleAdminCompleteTurn = useCallback(
     async (participantId: string) => {
