@@ -53,10 +53,8 @@ export const TurnHistory: FC<TurnHistoryProps> = ({ turnLog, formatLogEntry }) =
             <ListItem key={log.id} sx={{ py: 0.5 }}>
               <ListItemText
                 primary={formatLogEntry(log)}
-                // --- THIS IS THE FIX ---
                 // Replaced the placeholder with a call to our new utility.
                 secondary={formatFirestoreTimestamp(log.completedAt)}
-                // --- END FIX ---
                 sx={
                   log.type === 'TURN_COMPLETED' && log.isUndone
                     ? { textDecoration: 'line-through', color: 'text.disabled' }

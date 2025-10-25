@@ -1,30 +1,34 @@
+# Whose Turn Now
+
+[![Whose Turn Now CI](https://github.com/[YOUR_GITHUB_USERNAME]/[YOUR_REPO_NAME]/actions/workflows/ci.yml/badge.svg)](https://github.com/[YOUR_GITHUB_USERNAME]/[YOUR_REPO_NAME]/actions/workflows/ci.yml)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 [![Code Style: ESLint](https://img.shields.io/badge/code%20style-ESLint-563d7c.svg)](https://eslint.org/)
 
 ---
 
-# Whose Turn Now
-
-
 A lightweight, real-time, open-source utility for tracking whose turn it is. Manage your turn-based lists as easily and intuitively as a WhatsApp group.
 
-**Live Demo:** [whoseturnnow.web.app](https://whoseturnnow.web.app) *(Link will be live upon deployment)*
+**Live Demo:** [whoseturnnow.web.app](https://whoseturnnow.web.app)
 
-![Screenshot of Whose Turn Now App](https://via.placeholder.com/800x450.png?text=App+Screenshot+Coming+Soon)
+![Dashboard View](./docs/assets/screenshot-dashboard.png)
+*The main dashboard showing all your lists, with a highlight for lists where it's your turn.*
+
+![List Detail View](./docs/assets/screenshot-list-view.png)
+*The interactive list view with the "Up Next" participant, action buttons, and transparent turn history.*
 
 ## The Philosophy
 
-"Whose Turn Now" is designed to solve a simple, recurring social problem with a clean, transparent, and forgiving interface. The core principle is that the turn-tracking list should be a **dynamic queue**, not a static rotation. The application is built on an immutable, auditable log, ensuring every action is recorded and verifiable to avoid any "sneaky shit."
+"Whose Turn Now" is designed to solve a simple, recurring social problem with a clean, transparent, and forgiving interface. The core principle is that the turn-tracking list should be a **dynamic queue**, not a static rotation. The application is built on an immutable, auditable log, ensuring every action is recorded and verifiable.
 
 ## Core Features
 
 *   **⚡️ Instant Anonymous Use:** Start using the app instantly without an account. Your lists are saved to your session, and you can create a permanent account later to save them forever.
 *   **🔄 Dynamic Turn Queue:** The person at the top of the list is always next. When a turn is completed, they move to the bottom. Simple, visual, and intuitive.
+*   **⏭️ Skip Your Turn:** If it's your turn, you can choose to skip, moving you to the end of the queue without incrementing your turn count.
 *   **👥 Managed Participants:** Keep track of turns for anyone, even if they don't have the app. Perfect for managing kids' chores, pets, or friends who aren't online.
 *   **🤝 "Council of Admins" Management:** All admins have equal power to manage a list, add participants, and promote other admins. There's no single "owner" bottleneck.
-*   **↩️ Multi-Level Undo Stack:** Accidentally clicked the button? No problem. The app supports undoing the last three turns. Every undo is a transparent, logged action.
-*   **📜 Immutable Turn History:** Every action—completing a turn, resetting counts, or undoing an action—is recorded in a permanent, timestamped log for full transparency.
+*   **↩️ Three-Turn Undo Stack:** Accidentally completed a turn? No problem. The app allows you to undo the last three valid turns. Every undo is a transparent, logged action that reverts the state.
+*   **📜 Immutable Turn History:** Every action—completing a turn, skipping, resetting counts, or undoing—is recorded in a permanent, timestamped log for full transparency.
 *   **🎨 Personalized Lists:** Give your lists personality with a selectable emoji icon.
 *   **🔗 Invite via Link:** Easily invite friends to join your list with a simple, shareable URL.
 
@@ -78,9 +82,7 @@ The application will be running at `http://localhost:5173`.
 
 ## Contributing
 
-Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
-
-Please see `CONTRIBUTING.md` for guidelines on our development process.
+This project is currently developed following a focused roadmap for its Version 1 release. While the source is open, we are not actively seeking community pull requests at this time. However, suggestions and bug reports are welcome via the repository's "Issues" tab.
 
 ## License
 

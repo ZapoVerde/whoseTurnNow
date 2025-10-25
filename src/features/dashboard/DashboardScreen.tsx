@@ -3,13 +3,13 @@
  * @stamp {"ts":"2025-10-24T08:16:00Z"}
  * @architectural-role UI Component, Orchestrator
  * @description
- * Renders the user's main dashboard. It explicitly configures the AppBar to
- * hide the back button, establishing itself as a top-level screen. The layout
- * has been enhanced for better readability and visual weight.
+ * Renders the user's main dashboard. It now features larger, full-color emoji
+ * icons for improved visual weight and scannability, vertically centered
+ * against the list item text.
  * @core-principles
  * 1. IS the primary UI for displaying a user's collection of lists.
  * 2. MUST re-establish its data subscription when the connection mode transitions to 'live'.
- * 3. MUST explicitly set `showBackButton: false` in its AppBar configuration.
+ * 3. MUST render large, prominent emoji icons for each list.
  * @api-declaration
  *   - default: The DashboardScreen React functional component.
  * @contract
@@ -25,7 +25,6 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
-import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Fab from '@mui/material/Fab';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -121,33 +120,33 @@ export const DashboardScreen: FC = () => {
                 <Card
                   key={group.gid}
                   sx={{
-                    // Apply a standard, subtle shadow to all cards for elevation.
                     boxShadow: (theme) => theme.shadows[1],
-                    // Now, conditionally apply the border style.
                     border: isMyTurn
-                      // If it's the user's turn, apply the thick, secondary color border.
                       ? (theme) => `2px solid ${theme.palette.secondary.main}`
-                      // Otherwise, apply the standard, thin divider border.
                       : (theme) => `1px solid ${theme.palette.divider}`,
                   }}
                 >
-            <ListItem disablePadding>
-              <ListItemButton 
-                onClick={() => navigate(`/group/${group.gid}`)}
-                sx={{ py: 1.5 }} // Increase vertical padding
-              >
-                    <ListItemIcon>
-                      <Typography variant="h5">{group.icon}</Typography>
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={group.name}
-                      secondary={`Up next: ${getNextParticipantName(group)}`}
-                      primaryTypographyProps={{ variant: 'h6' }} // Make title larger
-                      secondaryTypographyProps={{ variant: 'body1' }} // Make subtitle larger
-                    />
-                  </ListItemButton>
-                </ListItem>
-              </Card>
+                  <ListItem disablePadding>
+                    <ListItemButton 
+                      onClick={() => navigate(`/group/${group.gid}`)}
+                      sx={{ py: 1.5, alignItems: 'center' }}
+                    >
+                      <Box sx={{ mr: 2, display: 'flex' }}>
+                        <Typography variant="h3">{group.icon}</Typography>
+                      </Box>
+                      <ListItemText
+                        primary={
+                          <Typography variant="h6">{group.name}</Typography>
+                        }
+                        secondary={
+                          <Typography variant="body1">
+                            {`Up next: ${getNextParticipantName(group)}`}
+                          </Typography>
+                        }
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                </Card>
               );
             })}
           </Stack>
