@@ -1,83 +1,102 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/hooks/useGroupDetail.ts
- * @stamp {"ts":"2025-10-25T08:30:00Z"}
+ * @stamp {"ts":"2025-10-25T15:20:00Z"}
  * @architectural-role Orchestrator
+ *
  * @description
  * The primary "Conductor" hook for the Group Detail feature. It composes all
  * state, derived logic, and user actions into a single, comprehensive view model
- * for the GroupDetailScreen component.
+ * for the `GroupDetailScreen` component. It now imports multiple specialized
+ * action hooks to keep file sizes small and adhere to the project's LOC limit
+ * for AI-friendliness.
+ *
  * @core-principles
  * 1. IS the single composition root for all of the feature's logic.
  * 2. MUST re-establish its data subscriptions when the connection mode changes.
- * 3. DELEGATES all business logic and action handling to its satellite hooks.
+ * 3. OWNS the shared UI state (`isSubmitting`, `feedback`) for its child action hooks.
+ * 4. DELEGATES all business logic and action handling to its satellite hooks.
+ *
  * @api-declaration
  *   - default: The `useGroupDetail` hook function.
  *   - returns: A comprehensive view model object required by the `GroupDetailScreen`.
+ *
  * @contract
  *   assertions:
  *     purity: mutates
- *     state_ownership: none
- *     external_io: none
+ *     state_ownership: [isSubmitting, feedback]
+ *     external_io: none # Delegates all I/O.
  */
 
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useEffect, useState, useMemo, type MouseEvent } from 'react';
 import { useGroupStore } from '../useGroupStore';
 import { useAuthStore } from '../../auth/useAuthStore';
+import { useAppStatusStore } from '../../../shared/store/useAppStatusStore';
 import { useMenuState } from './useMenuState';
 import { useDialogState } from './useDialogState';
 import { useGroupDerivedState } from './useGroupDerivedState';
-import { useGroupActions } from './useGroupActions';
-import { useAppStatusStore } from '../../../shared/store/useAppStatusStore';
-import type { TurnParticipant } from '../../../types/group';
+import { useTurnLifecycleActions } from './useTurnLifecycleActions';
+import { useMembershipActions } from './useMembershipActions';
+import { useGroupSettingsActions } from './useGroupSettingsActions';
+import { useSharingActions } from './useSharingActions';
+import type { TurnParticipant, LogEntry } from '../../../types/group';
 
 export function useGroupDetail(groupId: string | undefined) {
-  // 1. Get raw data from global stores
+  // 1. Raw Data & Global State
   const user = useAuthStore((state) => state.user);
   const { group, turnLog, isLoading, loadGroupAndLog, cleanup } = useGroupStore();
   const connectionMode = useAppStatusStore((state) => state.connectionMode);
 
-  // 2. Delegate business logic derivations to the "Brain" hook
+  // 2. Local UI State (Owned by the Orchestrator)
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
+
+  // 3. Derived State (The "Brain")
   const derivedState = useGroupDerivedState(group, user, turnLog);
 
-  // 3. Delegate action handlers to the "Hands" hook
-  const actions = useGroupActions({ groupId, user, group, ...derivedState });
-  
-  // 4. Manage all primitive UI state for menus and dialogs
+  // 4. Specialized Action Hooks (The "Hands")
+  const turnActions = useTurnLifecycleActions({
+    ...derivedState,
+    groupId,
+    group,
+    user,
+    setIsSubmitting,
+    setFeedback,
+  });
+
+  const membershipActions = useMembershipActions({
+    groupId,
+    group,
+    user,
+    setIsSubmitting,
+    setFeedback,
+  });
+
+  const settingsActions = useGroupSettingsActions({
+    groupId,
+    group,
+    user,
+    setFeedback,
+  });
+
+  const sharingActions = useSharingActions({
+    groupId,
+    group,
+    setFeedback,
+  });
+
+  // 5. Primitive UI State for Menus and Dialogs
   const groupMenu = useMenuState();
   const [selectedParticipant, setSelectedParticipant] = useState<TurnParticipant | null>(null);
   const participantMenuState = useMenuState();
-
-  const handleOpenParticipantMenu = (
-    event: MouseEvent<HTMLElement>,
-    participant: TurnParticipant,
-  ) => {
-    setSelectedParticipant(participant);
-    participantMenuState.handleOpen(event);
-  };
-
-  const handleCloseParticipantMenu = () => {
-    participantMenuState.handleClose();
-    // Delay clearing the selected participant to prevent menu content from disappearing during closing animation
-    setTimeout(() => setSelectedParticipant(null), 150);
-  };
-  
-  // Combine the state and handlers for the participant menu
-  const participantMenu = {
-    ...participantMenuState,
-    selectedParticipant,
-    handleOpen: handleOpenParticipantMenu,
-    handleClose: handleCloseParticipantMenu,
-  };
-
   const iconPickerMenu = useMenuState();
-  const deleteDialog = useDialogState(actions.handleConfirmDelete);
-  const resetDialog = useDialogState(actions.handleConfirmReset);
-  const undoDialog = useDialogState(actions.handleConfirmUndo);
-  const skipDialog = useDialogState(actions.handleSkipTurn);
   
-  const addParticipantDialog = useDialogState(() => {}); // Simple state management for open/close
+  const deleteDialog = useDialogState(settingsActions.handleConfirmDelete);
+  const resetDialog = useDialogState(settingsActions.handleConfirmReset);
+  const undoDialog = useDialogState(turnActions.handleConfirmUndo);
+  const skipDialog = useDialogState(turnActions.handleSkipTurn);
+  const addParticipantDialog = useDialogState(() => {}); // Simple open/close state
 
-  // 5. Handle side effects (data loading and cleanup)
+  // 6. Data Loading Side Effect
   useEffect(() => {
     if (groupId && connectionMode === 'live') {
       loadGroupAndLog(groupId);
@@ -85,36 +104,81 @@ export function useGroupDetail(groupId: string | undefined) {
     return () => cleanup();
   }, [groupId, connectionMode, loadGroupAndLog, cleanup]);
 
-  // 6. Compose final action handlers that close menus
-  const composedActions = {
-    ...actions,
-    handleRoleChange: (newRole: 'admin' | 'member') => {
-      if (participantMenu.selectedParticipant) {
-        actions.handleRoleChange(participantMenu.selectedParticipant.id, newRole);
+  // 7. Compose Final Actions Object for the UI
+  const composedActions = useMemo(() => {
+    const formatLogEntry = (log: LogEntry) => {
+      switch (log.type) {
+        case 'TURN_COMPLETED':
+          const byActor = log.actorUid !== log.participantId ? ` by ${log.actorName}` : '';
+          return `${log.participantName}'s turn was completed${byActor}.`;
+        case 'TURN_SKIPPED':
+          return `${log.participantName} skipped their turn.`;
+        case 'COUNTS_RESET':
+          return `All turn counts were reset by ${log.actorName}.`;
+        case 'TURN_UNDONE':
+          return `${log.actorName} undid ${log.originalParticipantName}'s turn.`;
+        default:
+          return 'An unknown action occurred.';
       }
-      participantMenu.handleClose();
+    };
+
+    return {
+      ...turnActions,
+      ...membershipActions,
+      ...settingsActions,
+      ...sharingActions,
+      formatLogEntry,
+      setFeedback, // Expose the setter for snackbar control
+      // Composed actions that also close menus
+      handleRoleChange: (newRole: 'admin' | 'member') => {
+        if (selectedParticipant) {
+          membershipActions.handleRoleChange(selectedParticipant.id, newRole);
+        }
+        participantMenuState.handleClose();
+      },
+      handleRemoveParticipant: () => {
+        if (selectedParticipant) {
+          membershipActions.handleRemoveParticipant(selectedParticipant.id);
+        }
+        participantMenuState.handleClose();
+      },
+      handleLeaveGroup: () => {
+        membershipActions.handleLeaveGroup();
+        participantMenuState.handleClose();
+      },
+    };
+  }, [
+    turnActions,
+    membershipActions,
+    settingsActions,
+    sharingActions,
+    selectedParticipant,
+    participantMenuState,
+  ]);
+
+  // 8. Compose Participant Menu Handlers
+  const participantMenu = {
+    ...participantMenuState,
+    selectedParticipant,
+    handleOpen: (event: MouseEvent<HTMLElement>, participant: TurnParticipant) => {
+      setSelectedParticipant(participant);
+      participantMenuState.handleOpen(event);
     },
-    handleRemoveParticipant: () => {
-      if (participantMenu.selectedParticipant) {
-        actions.handleRemoveParticipant(participantMenu.selectedParticipant.id);
-      }
-      participantMenu.handleClose();
+    handleClose: () => {
+      participantMenuState.handleClose();
+      setTimeout(() => setSelectedParticipant(null), 150);
     },
-    handleLeaveGroup: () => {
-      actions.handleLeaveGroup();
-      participantMenu.handleClose();
-    }
   };
 
-  // 7. Return the complete, composed view model
+  // 9. Return the Complete View Model
   return {
     group,
     turnLog,
     isLoading,
     user,
     ...derivedState,
-    isSubmitting: actions.isSubmitting,
-    feedback: actions.feedback,
+    isSubmitting,
+    feedback,
     groupMenu,
     participantMenu,
     iconPickerMenu,
