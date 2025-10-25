@@ -119,15 +119,16 @@ export function useMembershipActions({
 
   const handleLeaveGroup = useCallback(async () => {
     if (!groupId || !user) return;
-    // --- FIX: Implement loading state for this destructive, navigating action ---
-    setIsSubmitting(true);
+
+    setIsSubmitting(true); // Set loading state to true
     try {
       await groupsRepository.leaveGroup(groupId, user.uid);
+      // On success, we navigate away, so we don't need to set submitting to false.
       navigate('/');
     } catch (error) {
       console.error('Failed to leave group:', error);
       setFeedback({ message: 'Failed to leave group.', severity: 'error' });
-      setIsSubmitting(false); // Only set to false on error, otherwise we navigate away
+      setIsSubmitting(false); // On failure, reset the loading state.
     }
   }, [groupId, user, navigate, setFeedback, setIsSubmitting]);
 

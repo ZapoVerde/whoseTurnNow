@@ -52,7 +52,8 @@ export const GroupDetailScreen: FC = () => {
   } = viewModel;
 
   const appBarActions = useMemo(() => {
-    return isAdmin ? (
+    // Show the menu button if the user is a participant of any role.
+    return viewModel.currentUserParticipant ? (
       <IconButton
         color="inherit"
         aria-label="Group options"
@@ -61,7 +62,7 @@ export const GroupDetailScreen: FC = () => {
         <MoreVertIcon />
       </IconButton>
     ) : null;
-  }, [isAdmin, groupMenu.handleOpen]);
+  }, [viewModel.currentUserParticipant, groupMenu.handleOpen]);
 
   useAppBar({
     title: (

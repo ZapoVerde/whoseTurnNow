@@ -13,7 +13,7 @@
  *   assertions:
  *     purity: read-only # This test file asserts on the state of mocked modules.
  *     state_ownership: none
- *     external_io: none # Mocks MUST prevent any actual I/O. 
+ *     external_io: none # Mocks MUST prevent any actual I/O.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -81,8 +81,8 @@ describe('userRepository', () => {
       // ASSERT
       expect(mockCollection).toHaveBeenCalledWith(db, 'groups');
       expect(mockQuery).toHaveBeenCalled();
-      // This assertion is now correct for a map-based query.
-      expect(mockWhere).toHaveBeenCalledWith('participantUids', 'array-contains', uid);
+      // THIS IS THE FIX: Assert the correct map-based query syntax.
+      expect(mockWhere).toHaveBeenCalledWith(`participantUids.${uid}`, '==', true);
       expect(result).toBe('The Blocking Group');
     });
 

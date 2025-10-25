@@ -109,13 +109,20 @@ export const GroupManagementDialogs: React.FC<GroupManagementDialogsProps> = ({
                 open={addParticipantDialog.isOpen}
                 onClose={addParticipantDialog.handleClose}
                 onConfirm={actions.handleAddParticipant}
-                isSubmitting={isSubmitting} // <-- FIX 3: Pass the correct prop
+                isSubmitting={isSubmitting} 
             />
 
             <Menu anchorEl={groupMenu.anchorEl} open={groupMenu.isOpen} onClose={groupMenu.handleClose}>
-                <MenuItem onClick={(e) => { groupMenu.handleClose(); iconPickerMenu.handleOpen(e); }}>Change Icon</MenuItem>
-                <MenuItem onClick={resetDialog.handleOpen}>Reset All Turn Counts</MenuItem>
-                <MenuItem onClick={deleteDialog.handleOpen}>Delete Group</MenuItem>
+                {/* --- THIS IS THE FIX: Admin-only actions are now wrapped --- */}
+                {isAdmin && (
+                    [
+                        <MenuItem key="change-icon" onClick={(e) => { groupMenu.handleClose(); iconPickerMenu.handleOpen(e); }}>Change Icon</MenuItem>,
+                        <MenuItem key="reset-counts" onClick={resetDialog.handleOpen}>Reset All Turn Counts</MenuItem>,
+                        <MenuItem key="delete-group" onClick={deleteDialog.handleOpen}>Delete Group</MenuItem>
+                    ]
+                )}
+                {/* --- This action is visible to all members --- */}
+                <MenuItem onClick={actions.handleLeaveGroup} disabled={isLastAdmin}>Leave Group</MenuItem>
             </Menu>
 
             {participantMenu.selectedParticipant && (
@@ -133,10 +140,7 @@ export const GroupManagementDialogs: React.FC<GroupManagementDialogsProps> = ({
                             )}
                             <MenuItem onClick={actions.handleRemoveParticipant}>Remove Participant</MenuItem>
                         </>
-                    )}
-                    {participantMenu.selectedParticipant.uid === user?.uid && (
-                        <MenuItem onClick={actions.handleLeaveGroup} disabled={isLastAdmin}>Leave Group</MenuItem>
-                    )}
+                    )}                    
                 </Menu>
             )}
 

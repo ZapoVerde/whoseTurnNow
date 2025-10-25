@@ -81,7 +81,7 @@ async function updateUserDisplayName(
  */
 async function findBlockingGroup(uid: string): Promise<string | null> {
   const groupsRef = collection(db, 'groups');
-  const q = query(groupsRef, where('participantUids', 'array-contains', uid));
+  const q = query(groupsRef, where(`participantUids.${uid}`, '==', true));
   const userGroupsSnap = await getDocs(q);
 
   for (const doc of userGroupsSnap.docs) {

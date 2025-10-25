@@ -51,7 +51,8 @@ export const ParticipantList: FC<ParticipantListProps> = ({
   const theme = useTheme();
 
   return (
-    <Stack spacing={1} sx={{ mt: 2 }}>
+    // --- FIX 1: Reduced top margin from 2 to 1 to move list closer to title ---
+    <Stack spacing={1} sx={{ mt: 1 }}>
       {participants.map((participant, index) => (
         <Card
           key={participant.id}
@@ -59,15 +60,14 @@ export const ParticipantList: FC<ParticipantListProps> = ({
             index === 0
               ? {
                   boxShadow: theme.shadows[8],
-                  // The highlight border is now a hardcoded 2px.
                   border: `2px solid ${
                     isUserTurn ? theme.palette.secondary.main : theme.palette.primary.main
                   }`,
-                  mb: 2,
+                  // --- FIX 2: Increased bottom margin from 2 to 3 for more separation ---
+                  mb: 3,
                 }
               : {
                   boxShadow: theme.shadows[1],
-                  // The standard border is now a hardcoded 1px.
                   border: `1px solid ${theme.palette.divider}`,
                   mb: 0,
                 }
