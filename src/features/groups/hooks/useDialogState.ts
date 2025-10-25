@@ -20,41 +20,23 @@
  *     external_io: none # This hook performs no I/O.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, type MouseEvent } from 'react';
 
-/**
- * @id packages/whoseturnnow/src/features/groups/hooks/useDialogState.ts#DialogState
- * @description The return type for the useDialogState hook, providing all
- * necessary state and handlers to control a dialog.
- */
 export interface DialogState {
-  /**
-   * A boolean flag indicating whether the dialog is currently open.
-   */
   isOpen: boolean;
-  /**
-   * A callback to open the dialog.
-   */
-  handleOpen: () => void;
-  /**
-   * A callback to close the dialog without confirming.
-   */
+  handleOpen: (event?: MouseEvent<HTMLElement>) => void; // <-- MODIFIED
   handleClose: () => void;
-  /**
-   * A callback that executes the provided `onConfirm` logic and then closes the dialog.
-   */
   handleConfirm: () => void;
 }
 
-/**
- * A generic hook to manage the state of a single confirmation dialog.
- * @param onConfirm A memoized callback function to be executed when the user confirms the dialog.
- * @returns {DialogState} An object containing the dialog's state and its handlers.
- */
 export function useDialogState(onConfirm: () => void): DialogState {
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleOpen = useCallback(() => {
+  const handleOpen = useCallback((event?: MouseEvent<HTMLElement>) => {
+    // Proactively remove focus from the element that triggered the dialog.
+    if (event?.currentTarget) {
+      event.currentTarget.blur();
+    }
     setIsOpen(true);
   }, []);
 

@@ -59,27 +59,14 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
   }
 
   return (
-    <Box
-      sx={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        p: 2,
-        background: (theme) => `linear-gradient(to top, ${theme.palette.background.default} 70%, transparent)`,
-      }}
-    >
+    <Box /* ... */ >
       {/* --- LEFT WING --- */}
       <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-start', gap: 1 }}>
         {isAdmin && (
-          // --- THIS IS THE FIX: Changed from secondary to primary ---
           <Fab
             color="primary"
             aria-label="Add Participant"
-            onClick={onAddParticipantClick}
+            onClick={onAddParticipantClick} // This now correctly passes the event
             disabled={isSubmitting}
             size="medium"
           >
@@ -87,7 +74,6 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
           </Fab>
         )}
         {isUserTurn && (
-          // --- THIS IS THE FIX: Changed from secondary to primary ---
           <Fab
             color="primary"
             aria-label="Skip turn"
@@ -102,7 +88,6 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
 
       {/* --- CENTER ANCHOR --- */}
       <Box>
-        {/* --- THIS IS THE FIX: Changed from primary to secondary (accent) --- */}
         <Fab
           variant="extended"
           color="secondary"
@@ -122,7 +107,6 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
 
       {/* --- RIGHT WING --- */}
       <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-        {/* --- THIS IS THE FIX: Changed from secondary to primary --- */}
         <Fab
           color="primary"
           aria-label="Undo last turn"
@@ -133,7 +117,6 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
           <UndoIcon />
         </Fab>
         {isAdmin && (
-          // --- THIS IS THE FIX: Changed from secondary to primary ---
           <Fab
             color="primary"
             aria-label="Invite to group"
