@@ -44,3 +44,9 @@ jobs:
       # This ensures the code is valid and can be compiled.
       - name: 'Run build'
         run: pnpm --filter @aianvil/whoseturnnow build
+
+      # Step 7: Run the test suite for the "whoseturnnow" package.
+      # This ensures our business logic is correct.
+      - name: 'Run tests'
+        run: pnpm --filter @aianvil/whoseturnnow test
+      # --- END FIX ---

@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/hooks/useGroupDerivedState.spec.ts
- * @stamp {"ts":"2025-10-25T13:30:00Z"}
+ * @stamp {"ts":"2025-10-25T13:35:00Z"}
  * @test-target packages/whoseturnnow/src/features/groups/hooks/useGroupDerivedState.ts
  *
  * @description
@@ -45,6 +45,7 @@ const mockGroup: Group = {
   adminUids: { 'user-admin': true },
 };
 
+// Add the missing properties to satisfy the complete TurnCompletedLog type.
 const mockCompletedLog: TurnCompletedLog & { id: string } = {
   id: 'log-1',
   type: 'TURN_COMPLETED',
@@ -53,6 +54,8 @@ const mockCompletedLog: TurnCompletedLog & { id: string } = {
   participantName: 'Other',
   actorUid: 'user-other',
   actorName: 'Other',
+  _participantUids: mockGroup.participantUids, // Use realistic data.
+  _adminUids: mockGroup.adminUids,           // Use realistic data.
 };
 
 describe('useGroupDerivedState', () => {
@@ -93,7 +96,6 @@ describe('useGroupDerivedState', () => {
     it('should hydrate the current user`s nickname with their global displayName', () => {
       const { result } = renderHook(() => useGroupDerivedState(mockGroup, adminUser, []));
       const currentUserInList = result.current.orderedParticipants.find(p => p.uid === adminUser.uid);
-      // The hook should overwrite the local nickname ('Admin Local') with the global name.
       expect(currentUserInList?.nickname).toBe('Admin Global');
     });
   });
@@ -105,7 +107,6 @@ describe('useGroupDerivedState', () => {
     });
 
     it('should return null for undoableAction if the user is not an admin', () => {
-      // Per the simplified logic, only admins can undo.
       const { result } = renderHook(() => useGroupDerivedState(mockGroup, memberUser, [mockCompletedLog]));
       expect(result.current.undoableAction).toBeNull();
     });
