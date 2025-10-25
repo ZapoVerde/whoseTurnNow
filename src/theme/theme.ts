@@ -1,30 +1,34 @@
 /**
- * @file src/theme/theme.ts
- * @stamp {"ts":"2025-09-19T10:37:00Z"}
+ * @file packages/whoseturnnow/src/theme/theme.ts
+ * @stamp {"ts":"2025-10-25T09:25:00Z"}
  * @architectural-role Theme Engine Core
  *
  * @description
  * This file contains the primary logic for generating the application's MUI
- * theme object. It uses the "Bootstrap and Override" pattern. It creates a
- * "bootstrap" theme with static color values from `tokens.ts` to satisfy MUI's
- * `createTheme` function, while the final styling is enforced by CSS variables
- * applied in `overrides.ts`.
- *
- * @contract
- * State Ownership: None. This file exports pure functions.
- * Public API: Exports `baseTheme` and `leakTheme` factory functions.
- * Core Invariants: The palette object must be populated with static, concrete color values.
+ * theme object. It composes primitive values from tokens.ts into a complete
+ * theme structure, including palette, shape, and component overrides.
  *
  * @core-principles
- * 1. IS the central engine for theme generation.
- * 2. MUST create a valid, static "bootstrap" theme for MUI's internal logic.
- * 3. MUST correctly pass all theme dimension parameters to the `getComponentOverrides` function.
+ * 1. IS the central engine for all theme generation.
+ * 2. MUST create a valid, static "bootstrap" theme to satisfy MUI's internal logic.
+ * 3. MUST correctly compose all primitive tokens into the final theme object.
+ *
+ * @api-declaration
+ *   - baseTheme: Factory function for the main application theme.
+ *   - leakTheme: Factory function for a diagnostic theme.
+ *
+ * @contract
+ *   assertions:
+ *     purity: pure
+ *     state_ownership: none
+ *     external_io: none
  */
-import { createTheme, responsiveFontSizes } from '@mui/material/styles';
-import type { Theme } from '@mui/material/styles';
-import { TOKENS, SHADOWS, RADII, Z_INDEX } from './tokens';
+
+import { createTheme, responsiveFontSizes, type Theme } from '@mui/material';
+import { TOKENS, SHADOWS, RADII, Z_INDEX, BORDER_WIDTHS } from './tokens';
 import { getComponentOverrides } from './overrides';
 import type { Density } from './index';
+
 
 /**
  * Calculates scaling values for UI controls based on the selected density.
@@ -97,12 +101,12 @@ export function baseTheme(
       frostedSurface: { light: t.frostedLight, dark: t.frostedDark },
       surface: { canvas: bgDefault, panel: bgPaper, card: bgPaper },
     },
-    shape: { borderRadius: d.radius },
+    shape: {
+      borderRadius: d.radius,
+      borderWidths: BORDER_WIDTHS, 
+    },
     spacing: 8 * d.spacingFactor,
-    // --- THIS IS THE FIX ---
-    // Replaced `any` with the specific type from the MUI Theme definition.
     shadows: SHADOWS as Theme['shadows'],
-    // --- END FIX ---
     zIndex: Z_INDEX,
     typography: {
       fontFamily: '"Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',

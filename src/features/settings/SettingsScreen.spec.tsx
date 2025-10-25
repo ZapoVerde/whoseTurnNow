@@ -16,16 +16,18 @@
  *     external_io: none # Mocks MUST prevent any actual I/O.
  */
 
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Mock } from 'vitest';
 
 // --- Mocks ---
 vi.mock('../auth/userRepository');
+// --- Mock the entire store hook for isolation. ---
+vi.mock('../auth/useAuthStore');
 
 // --- Imports ---
 import { SettingsScreen } from './SettingsScreen';
-// THIS IS THE FIX: Import the actual store to manipulate its state.
 import { useAuthStore } from '../auth/useAuthStore';
 import { userRepository } from '../auth/userRepository';
 import type { AppUser } from '../auth/useAuthStore';
@@ -34,6 +36,9 @@ import type { AppUser } from '../auth/useAuthStore';
 const mockUpdateUserDisplayName = vi.mocked(userRepository.updateUserDisplayName);
 const mockDeleteUserAccount = vi.mocked(userRepository.deleteUserAccount);
 const mockFindBlockingGroup = vi.mocked(userRepository.findBlockingGroup);
+// --- Get a typed reference to the mocked hook. ---
+const mockUseAuthStore = useAuthStore as Mock;
+
 
 describe('SettingsScreen', () => {
   const mockUser: AppUser = {
@@ -41,15 +46,15 @@ describe('SettingsScreen', () => {
     displayName: 'Old Name',
     isAnonymous: false,
   };
+  // --- Create a mock function for the action. ---
+  const mockSetAuthenticated = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // THIS IS THE FIX: Set the state of the actual store before each test.
-    act(() => {
-      useAuthStore.setState({
-        user: mockUser,
-        status: 'authenticated',
-      });
+    // --- Set the return value of the mocked hook. ---
+    mockUseAuthStore.mockReturnValue({
+      user: mockUser,
+      setAuthenticated: mockSetAuthenticated,
     });
 
     mockUpdateUserDisplayName.mockResolvedValue(undefined);
@@ -59,8 +64,6 @@ describe('SettingsScreen', () => {
 
   it('should update the display name and call the store action on success', async () => {
     const user = userEvent.setup();
-    // Spy on the store's action to verify it's called.
-    const setAuthenticatedSpy = vi.spyOn(useAuthStore.getState(), 'setAuthenticated');
     render(<SettingsScreen />);
     
     const nameInput = screen.getByLabelText(/Global Display Name/i);
@@ -78,12 +81,12 @@ describe('SettingsScreen', () => {
 
     await waitFor(() => {
       expect(mockUpdateUserDisplayName).toHaveBeenCalledWith(mockUser.uid, newName);
-      expect(setAuthenticatedSpy).toHaveBeenCalledWith({
+      // --- THIS IS THE FIX (PART 5): Assert on the mock function directly. ---
+      expect(mockSetAuthenticated).toHaveBeenCalledWith({
         ...mockUser,
         displayName: newName,
       });
     });
-    setAuthenticatedSpy.mockRestore();
   });
 
   it('should complete the high-friction deletion flow when not blocked', async () => {

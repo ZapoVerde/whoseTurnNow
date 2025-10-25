@@ -1,24 +1,33 @@
 /**
- * @file src/theme/tokens.ts
- * @stamp {"ts":"2025-10-24T07:42:00Z"}
+ * @file packages/whoseturnnow/src/theme/tokens.ts
+ * @stamp {"ts":"2025-10-25T09:25:00Z"}
  * @architectural-role Design System Definition
  *
  * @description
- * This file is the single source of truth for all primitive design values,
- * including the static color definitions used to bootstrap the MUI theme object.
- * The canonical, dynamic color palette lives as CSS Custom Properties in
- * `global.css`. This file defines shadows, radii, transitions, and z-index layers.
- *
- * @contract
- * State Ownership: None. This is a stateless configuration file.
- * Public API: Exports constant objects for `TOKENS`, `SHADOWS`, `RADII`, `TRANSITIONS`, and `Z_INDEX`.
- * Core Invariants: This file must contain the complete set of static color definitions needed by `theme.ts`.
+ * This file is the single source of truth for all primitive design values.
+ * It defines static colors, shadows, radii, border widths, transitions, and
+ * z-index layers used to construct the application's theme.
  *
  * @core-principles
  * 1. IS the canonical source for all raw styling values.
  * 2. MUST export only plain constant objects.
  * 3. MUST be dependency-free.
+ *
+ * @api-declaration
+ *   - TOKENS: Constant object for raw color values.
+ *   - SHADOWS: Array of box-shadow strings for elevation.
+ *   - RADII: Constant object for border-radius values.
+ *   - BORDER_WIDTHS: Constant object for border width values.
+ *   - TRANSITIONS: Constant object for CSS transition properties.
+ *   - Z_INDEX: Constant object for z-index layering.
+ *
+ * @contract
+ *   assertions:
+ *     purity: pure
+ *     state_ownership: none
+ *     external_io: none
  */
+
 // "Modern Slate & Vivid Yellow" Palette
 export const TOKENS = {
   // Light Mode Colors
@@ -83,6 +92,11 @@ export const RADII = {
   small: 8, 
   medium: 12, 
   large: 16, 
+};
+
+export const BORDER_WIDTHS = {
+  standard: 1,
+  highlight: 2,
 };
 
 export const TRANSITIONS = {

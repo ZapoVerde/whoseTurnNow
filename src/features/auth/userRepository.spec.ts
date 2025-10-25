@@ -82,7 +82,7 @@ describe('userRepository', () => {
       expect(mockCollection).toHaveBeenCalledWith(db, 'groups');
       expect(mockQuery).toHaveBeenCalled();
       // This assertion is now correct for a map-based query.
-      expect(mockWhere).toHaveBeenCalledWith(`participantUids.${uid}`, '==', true);
+      expect(mockWhere).toHaveBeenCalledWith('participantUids', 'array-contains', uid);
       expect(result).toBe('The Blocking Group');
     });
 

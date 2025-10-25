@@ -1,24 +1,32 @@
 /**
- * @file src/theme/index.ts
- * @stamp {"ts":"2025-09-19T10:37:00Z"}
+ * @file packages/whoseturnnow/src/theme/index.ts
+ * @stamp {"ts":"2025-10-25T09:25:00Z"}
  * @architectural-role Theme System Entry Point
  *
  * @description
  * This is the public-facing entry point for the application's theming system. It
  * exports the main `getAppTheme` factory function, type definitions, and handles
- * MUI module augmentation for custom theme properties.
- *
- * @contract
- * State Ownership: None. This file exports pure functions and types.
- * Public API: Exports `getAppTheme`, `Density`, `AppMode`, and performs module augmentation on MUI's `Palette`.
- * Core Invariants: Module augmentation for custom palette colors must be correct and complete.
+ * MUI module augmentation for custom theme properties like palette and shape.
  *
  * @core-principles
  * 1. IS the single, public facade for the entire theming system.
  * 2. MUST export the `getAppTheme` function as the primary way to generate a theme.
- * 3. OWNS the TypeScript module augmentation for custom theme properties.
+ * 3. OWNS the TypeScript module augmentation for all custom theme properties.
+ *
+ * @api-declaration
+ *   - getAppTheme: The primary factory function to generate a theme.
+ *   - Performs module augmentation on MUI's `Palette`, `PaletteOptions`, `Shape`,
+ *     and `ShapeOptions` interfaces.
+ *
+ * @contract
+ *   assertions:
+ *     purity: pure
+ *     state_ownership: none
+ *     external_io: none
  */
-import type { Theme } from '@mui/material/styles';
+
+
+import type { Theme } from '@mui/material';
 import { baseTheme, leakTheme } from './theme';
 
 // ============================================================================
@@ -45,23 +53,6 @@ const SURFACE_STYLE: 'contrast' | 'flat' = 'contrast';
 
 export type Density = 'comfortable' | 'compact';
 export type AppMode = 'light' | 'dark' | 'leak-white' | 'leak-black';
-
-// Extend the Palette type to include our custom semantic colors so they can be
-// accessed via `theme.palette.*` and receive TypeScript autocompletion.
-declare module '@mui/material/styles' {
-  interface Palette {
-    pinnedEntity: Palette['primary'];
-    chipBackground: Palette['primary'];
-    frostedSurface: { light: string; dark: string };
-    surface: { canvas: string; panel: string; card: string };
-  }
-  interface PaletteOptions {
-    pinnedEntity?: PaletteOptions['primary'];
-    chipBackground?: PaletteOptions['primary'];
-    frostedSurface?: { light: string; dark: string };
-    surface?: { canvas: string; panel: string; card: string };
-  }
-}
 
 // ============================================================================
 // Public Theme Factory Function

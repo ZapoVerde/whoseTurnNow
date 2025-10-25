@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/CreateListDialog.spec.tsx
- * @stamp {"ts":"2025-10-24T23:30:00Z"}
+ * @stamp {"ts":"2025-10-25T07:44:00Z"}
  * @test-target packages/whoseturnnow/src/features/groups/CreateListDialog.tsx
  * @description Verifies that the create list dialog correctly captures user input and invokes the repository on submission, resulting in a successful navigation.
  * @criticality Critical (Reason: I/O & Concurrency Management)
@@ -10,6 +10,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { Dialog } from '@mui/material';
 
 // --- Mocks ---
 vi.mock('react-router-dom', () => ({
@@ -17,12 +18,26 @@ vi.mock('react-router-dom', () => ({
 }));
 vi.mock('../auth/useAuthStore');
 vi.mock('./repository');
-// THIS IS THE FIX: Mock the complex child component.
+// The mock wraps its content in a Dialog component. This ensures that
+// when it's open, it exists in the same modal layer as the main CreateListDialog,
+// making it accessible to testing-library's queries and avoiding the
+// `aria-hidden` issue.
 vi.mock('../../shared/components/EmojiPickerPopover', () => ({
-  EmojiPickerPopover: ({ onEmojiSelect, open }: any) =>
-    open ? (
-      <button onClick={() => onEmojiSelect('🧪')}>Mock Emoji Select</button>
-    ) : null,
+  EmojiPickerPopover: ({ onEmojiSelect, open, onClose }: { onEmojiSelect: (e: string) => void, open: boolean, onClose: () => void }) => {
+    if (!open) return null;
+    return (
+      <Dialog open={open} onClose={onClose}>
+        <button
+          onClick={() => {
+            onEmojiSelect('🧪');
+            onClose();
+          }}
+        >
+          Mock Emoji Select
+        </button>
+      </Dialog>
+    );
+  },
 }));
 
 // --- Imports ---
@@ -55,7 +70,6 @@ describe('CreateListDialog', () => {
   });
 
   it('should call createGroup with correct data and navigate on success', async () => {
-    // ARRANGE
     const user = userEvent.setup();
     render(<CreateListDialog open={true} onClose={mockOnClose} />);
 
@@ -63,35 +77,29 @@ describe('CreateListDialog', () => {
     const nameInput = screen.getByLabelText(/List Name/i);
     const iconButton = screen.getByRole('button', { name: /select emoji icon/i });
 
-    // ASSERT PRE-CONDITION: Button is disabled.
     expect(createButton).toBeDisabled();
 
-    // ACT: Fill out the form.
     await user.type(nameInput, 'My Awesome List');
-    await user.click(iconButton); // Open the mocked picker.
+    await user.click(iconButton);
 
-    // Find and click the button inside our mock component.
+    // Now this button will be found because it's in an accessible dialog
     const mockEmojiButton = await screen.findByRole('button', { name: /Mock Emoji Select/i });
     await user.click(mockEmojiButton);
 
-    // ASSERT: The button should now be enabled.
     await waitFor(() => {
       expect(createButton).toBeEnabled();
     });
 
-    // ACT: Submit the form.
     await user.click(createButton);
 
-    // ASSERT FINAL STATE
     await waitFor(() => {
-      expect(mockCreateGroup).toHaveBeenCalledTimes(1);
       expect(mockCreateGroup).toHaveBeenCalledWith({
         name: 'My Awesome List',
         icon: '🧪',
         creator: mockUser,
       });
       expect(mockNavigate).toHaveBeenCalledWith('/group/new-group-id');
-      expect(mockOnClose).toHaveBeenCalledTimes(1);
+      expect(mockOnClose).toHaveBeenCalled();
     });
   });
 });

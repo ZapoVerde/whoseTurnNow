@@ -1,16 +1,15 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/components/ParticipantList.tsx
- * @stamp {"ts":"2025-10-24T12:00:00Z"}
+ * @stamp {"ts":"2025-10-25T08:10:00Z"}
  * @architectural-role UI Component
  * @description
- * Renders the ordered list of participants. It now ensures all participant rows
- * are rendered at full contrast and only attaches the menu-opening click handler
- * for administrative users, preventing empty menus from appearing for others.
+ * Renders the ordered list of participants. It now uses a theme-compliant
+ * combination of a higher-elevation shadow and a thick, colored border to
+ * prominently highlight the "Up Next" participant.
  * @core-principles
  * 1. IS a pure, presentational ("dumb") component.
- * 2. MUST use distinct styling to visually distinguish the next participant.
- * 3. MUST only enable context menu interactions for users with the 'admin' role.
- * 4. DELEGATES all user interactions to its parent component via callbacks.
+ * 2. MUST use a prominent, high-contrast style to distinguish the next participant.
+ * 3. MUST use only properties from the central theme object for all styling.
  * @api-declaration
  *   - default: The ParticipantList React functional component.
  * @contract
@@ -46,7 +45,7 @@ export const ParticipantList: FC<ParticipantListProps> = ({
   participants,
   onParticipantClick,
   onInviteToClaim,
-  isAdmin,  
+  isAdmin,
   isUserTurn,
 }) => {
   const theme = useTheme();
@@ -56,25 +55,28 @@ export const ParticipantList: FC<ParticipantListProps> = ({
       {participants.map((participant, index) => (
         <Card
           key={participant.id}
-          sx={{
-            boxShadow:
-              index === 0 && isUserTurn
-                ? `0 0 8px 2px ${theme.palette.secondary.main}`
-                : theme.shadows[1],
-            border: `1px solid ${theme.palette.divider}`,
-            mb: index === 0 ? 2 : 0,
-          }}
+          sx={
+            index === 0
+              ? {
+                  boxShadow: theme.shadows[8],
+                  border: `${theme.shape.borderWidths.highlight}px solid ${
+                    isUserTurn ? theme.palette.secondary.main : theme.palette.primary.main
+                  }`,
+                  mb: 2,
+                }
+              : {
+                  boxShadow: theme.shadows[1],
+                  border: `${theme.shape.borderWidths.standard}px solid ${theme.palette.divider}`,
+                  mb: 0,
+                }
+          }
         >
-          {/* --- THIS IS THE FIX --- */}
-          {/* The `onClick` is now conditional, and the `disabled` prop is removed. */}
           <ListItemButton
             onClick={isAdmin ? (e) => onParticipantClick(e, participant) : undefined}
             sx={{
-                // Ensure the button has a pointer cursor only when it's clickable for admins
                 cursor: isAdmin ? 'pointer' : 'default',
             }}
           >
-          {/* --- END FIX --- */}
             <ListItemText
               primary={participant.nickname || 'Unnamed'}
               secondary={`Turns: ${participant.turnCount}`}

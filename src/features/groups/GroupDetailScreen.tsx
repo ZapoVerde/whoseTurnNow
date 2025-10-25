@@ -1,15 +1,14 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/GroupDetailScreen.tsx
- * @stamp {"ts":"2025-10-24T11:40:00Z"}
+ * @stamp {"ts":"2025-10-25T08:30:00Z"}
  * @architectural-role UI Component
  * @description
- * The top-level UI component for the Group Detail feature. It now configures the
- * AppBar to display a large, centered title, making it the single source of
- * truth for the group's name on this screen.
+ * The top-level UI component for the Group Detail feature. It is a lean,
+ * presentational component that delegates all logic to the `useGroupDetail` hook.
  * @core-principles
  * 1. IS a "dumb" component that primarily composes other dumb children.
  * 2. MUST delegate all business logic to its backing `useGroupDetail` hook.
- * 3. MUST configure the AppBar to display a prominent, centered title.
+ * 3. MUST use the <Stack> primitive for vertical layout as per the standard.
  * @api-declaration
  *   - default: The GroupDetailScreen React functional component.
  * @contract
@@ -39,29 +38,18 @@ export const GroupDetailScreen: FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
 
+  // Single hook call to get the entire view model
+  const viewModel = useGroupDetail(groupId);
   const {
     group,
     turnLog,
     isLoading,
-    isSubmitting,
-    feedback,
-    user,
     orderedParticipants,
     isAdmin,
-    isLastAdmin,
     isUserTurn,
-    undoableAction,
-    currentUserParticipant,
-    groupMenu,
-    participantMenu,
-    iconPickerMenu,
-    resetDialog,
-    deleteDialog,
-    undoDialog,
-    skipDialog,
-    addParticipantDialog,
     actions,
-  } = useGroupDetail(groupId);
+    groupMenu,
+  } = viewModel;
 
   const appBarActions = useMemo(() => {
     return isAdmin ? (
@@ -84,12 +72,10 @@ export const GroupDetailScreen: FC = () => {
         justifyContent="center"
         sx={{ width: '100%' }}
       >
-        {/* --- THIS IS THE FIX --- */}
         <Typography variant="h3">{group?.icon}</Typography>
         <Typography variant="h4" component="div">
           {group?.name || 'Loading...'}
         </Typography>
-        {/* --- END FIX --- */}
       </Stack>
     ),
     showBackButton: true,
@@ -106,57 +92,45 @@ export const GroupDetailScreen: FC = () => {
 
   if (!group) {
     return (
-      <Box component="main" sx={{ p: 2, textAlign: 'center' }}>
+      <Stack spacing={2} alignItems="center" sx={{ mt: 4 }}>
         <Typography variant="h5">Group not found.</Typography>
-        <Button onClick={() => navigate('/')} sx={{ mt: 2 }}>
+        <Button onClick={() => navigate('/')}>
           Go to Dashboard
         </Button>
-      </Box>
+      </Stack>
     );
   }
 
   return (
     <>
-      <Box component="main" sx={{ pb: 12, pt: 2 }}>
+      <Stack spacing={4} sx={{ pb: 12 }}>
+        <Typography variant="h5" component="h2">
+          Up Next
+        </Typography>
         <ParticipantList
           participants={orderedParticipants}
-          onParticipantClick={participantMenu.handleOpen}
+          onParticipantClick={viewModel.participantMenu.handleOpen}
           onInviteToClaim={actions.handleTargetedInvite}
           isAdmin={isAdmin}
           isUserTurn={isUserTurn}
         />
         <TurnHistory turnLog={turnLog} formatLogEntry={actions.formatLogEntry} />
-      </Box>
+      </Stack>
 
       <GroupActionButtons
-        isParticipant={!!currentUserParticipant}
+        isParticipant={!!viewModel.currentUserParticipant}
         onTurnAction={actions.handleTurnAction}
-        onUndoClick={undoDialog.handleOpen}
-        onSkipClick={skipDialog.handleOpen}
+        onUndoClick={viewModel.undoDialog.handleOpen}
+        onSkipClick={viewModel.skipDialog.handleOpen}
         onInviteClick={actions.handleGenericInvite}
-        onAddParticipantClick={addParticipantDialog.handleOpen}
+        onAddParticipantClick={viewModel.addParticipantDialog.handleOpen}
         isUserTurn={isUserTurn}
-        isSubmitting={isSubmitting}
-        undoableAction={undoableAction}
+        isSubmitting={viewModel.isSubmitting}
+        undoableAction={viewModel.undoableAction}
         isAdmin={isAdmin}
       />
 
-      <GroupManagementDialogs
-        groupMenu={groupMenu}
-        participantMenu={participantMenu}
-        iconPickerMenu={iconPickerMenu}
-        resetDialog={resetDialog}
-        deleteDialog={deleteDialog}
-        undoDialog={undoDialog}
-        skipDialog={skipDialog}
-        addParticipantDialog={addParticipantDialog}
-        actions={actions}
-        feedback={feedback}
-        undoableAction={undoableAction}
-        user={user}
-        isAdmin={isAdmin}
-        isLastAdmin={isLastAdmin}
-      />
+      <GroupManagementDialogs {...viewModel} />
     </>
   );
 };
