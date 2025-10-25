@@ -3,13 +3,14 @@
  * @stamp {"ts":"2025-10-24T07:55:00Z"}
  * @architectural-role UI Component
  * @description
- * Renders the fixed bottom Action Bar. It enforces visual hierarchy by applying
- * the theme's accent color to the primary CTA and a muted color to secondary actions.
+ * Renders the fixed bottom Action Bar using a robust "growable center" flexbox
+ * layout. This ensures the primary action button fluidly fills the available
+ * space between the secondary action wings, creating a balanced and
+ * responsive layout.
  * @core-principles
  * 1. IS a pure, presentational component for the application's core actions.
- * 2. MUST apply the accent color (`secondary`) to the main turn-taking button.
- * 3. MUST apply the primary color to all other floating action buttons.
- * 4. DELEGATES all event handling to its parent via callbacks.
+ * 2. MUST use a flexbox layout with `flex-grow: 1` on the central button.
+ * 3. MUST apply consistent spacing between all elements using the `gap` property.
  * @api-declaration
  *   - default: The GroupActionButtons React functional component.
  * @contract
@@ -19,7 +20,7 @@
  *     external_io: none
  */
 
-import { type FC } from 'react';
+import { type FC, type MouseEvent } from 'react';
 import Box from '@mui/material/Box';
 import Fab from '@mui/material/Fab';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -27,14 +28,15 @@ import ShareIcon from '@mui/icons-material/Share';
 import UndoIcon from '@mui/icons-material/Undo';
 import AddIcon from '@mui/icons-material/Add';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
+import Stack from '@mui/material/Stack';
 import type { TurnCompletedLog } from '../../../types/group';
 
 interface GroupActionButtonsProps {
   onTurnAction: () => void;
-  onUndoClick: () => void;  
+  onUndoClick: () => void;
   onSkipClick: () => void;
   onInviteClick: () => void;
-  onAddParticipantClick: () => void;
+  onAddParticipantClick: (event: MouseEvent<HTMLElement>) => void;
   isUserTurn: boolean;
   isSubmitting: boolean;
   undoableAction: (TurnCompletedLog & { id: string }) | null;
@@ -44,7 +46,7 @@ interface GroupActionButtonsProps {
 
 export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
   onTurnAction,
-  onUndoClick,  
+  onUndoClick,
   onSkipClick,
   onInviteClick,
   onAddParticipantClick,
@@ -59,14 +61,33 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
   }
 
   return (
-    <Box /* ... */ >
+    <Box
+      sx={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        display: 'flex',
+        alignItems: 'center',
+        // Use gap to create consistent spacing between the three main sections.
+        gap: 1,
+        p: 2,
+        background: (theme) => `linear-gradient(to top, ${theme.palette.background.default} 70%, transparent)`,
+      }}
+    >
       {/* --- LEFT WING --- */}
-      <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-start', gap: 1 }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        justifyContent="flex-start"
+        // Reserve a minimum width to keep the layout stable even when empty.
+        sx={{ minWidth: 120 }}
+      >
         {isAdmin && (
           <Fab
             color="primary"
             aria-label="Add Participant"
-            onClick={onAddParticipantClick} // This now correctly passes the event
+            onClick={onAddParticipantClick}
             disabled={isSubmitting}
             size="medium"
           >
@@ -84,29 +105,34 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
             <SkipNextIcon />
           </Fab>
         )}
-      </Box>
+      </Stack>
 
-      {/* --- CENTER ANCHOR --- */}
-      <Box>
-        <Fab
-          variant="extended"
-          color="secondary"
-          onClick={onTurnAction}
-          disabled={isSubmitting}
-          sx={{ minWidth: '180px' }}
-        >
-          {isSubmitting ? (
-            <CircularProgress size={24} color="inherit" />
-          ) : isUserTurn ? (
-            'Complete My Turn'
-          ) : (
-            'Take My Turn'
-          )}
-        </Fab>
-      </Box>
+      {/* --- CENTER BUTTON (FLUIDLY GROWING) --- */}
+      <Fab
+        variant="extended"
+        color="secondary"
+        onClick={onTurnAction}
+        disabled={isSubmitting}
+        // flexGrow: 1 is the key to making the button fill the available space.
+        sx={{ flexGrow: 1 }}
+      >
+        {isSubmitting ? (
+          <CircularProgress size={24} color="inherit" />
+        ) : isUserTurn ? (
+          'Complete My Turn'
+        ) : (
+          'Take My Turn'
+        )}
+      </Fab>
 
       {/* --- RIGHT WING --- */}
-      <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        justifyContent="flex-end"
+        // Reserve a minimum width to keep the layout stable.
+        sx={{ minWidth: 120 }}
+      >
         <Fab
           color="primary"
           aria-label="Undo last turn"
@@ -127,7 +153,7 @@ export const GroupActionButtons: FC<GroupActionButtonsProps> = ({
             <ShareIcon />
           </Fab>
         )}
-      </Box>
+      </Stack>
     </Box>
   );
 };

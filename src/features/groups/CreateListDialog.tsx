@@ -3,14 +3,12 @@
  * @stamp {"ts":"2025-10-23T11:45:00Z"}
  * @architectural-role UI Component
  * @description
- * A modal component for creating a new list. It captures the list's name and
- * uses a popover with a lazy-loaded emoji picker for icon selection, improving
- * the user experience.
+ * A modal component for creating a new list. It now uses the "Close and Defer"
+ * pattern to prevent focus-related race conditions upon submission.
  * @core-principles
  * 1. OWNS the UI state for the list creation form.
  * 2. MUST validate user input before proceeding.
- * 3. DELEGATES the actual data creation to the `groupsRepository`.
- * 4. MUST use the shared `EmojiPickerPopover` for icon selection.
+ * 3. MUST deterministically manage focus by closing itself before triggering navigation.
  * @api-declaration
  *   - default: The CreateListDialog React functional component.
  * @contract
@@ -38,6 +36,8 @@ import { useAuthStore } from '../auth/useAuthStore';
 import { useMenuState } from './hooks/useMenuState';
 import { EmojiPickerPopover } from '../../shared/components/EmojiPickerPopover';
 
+const DEFER_ACTION_MS = 50;
+
 interface CreateListDialogProps {
   open: boolean;
   onClose: () => void;
@@ -63,21 +63,24 @@ export const CreateListDialog: FC<CreateListDialogProps> = ({ open, onClose }) =
     }
 
     setIsSubmitting(true);
-    try {
-      // --- THIS IS THE FIX ---
-      // The function must be called on the correctly named 'groupsRepository' object.
-      const newGroupId = await groupsRepository.createGroup({
-        name: name.trim(),
-        icon: icon.trim(),
-        creator: user,
-      });
-      navigate(`/group/${newGroupId}`);
-      handleClose();
-    } catch (error) {
-      console.error('Failed to create group:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
+    // 1. Close the dialog immediately to start the unmount animation.
+    handleClose();
+
+    // 2. Defer the expensive operation to the next event loop tick.
+    setTimeout(async () => {
+      try {
+        const newGroupId = await groupsRepository.createGroup({
+          name: name.trim(),
+          icon: icon.trim(),
+          creator: user,
+        });
+        navigate(`/group/${newGroupId}`);
+      } catch (error) {
+        console.error('Failed to create group:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
+    }, DEFER_ACTION_MS);
   };
 
   return (

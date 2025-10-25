@@ -3,13 +3,12 @@
  * @stamp {"ts":"2025-10-23T07:00:00Z"}
  * @architectural-role UI Component
  * @description
- * A modal dialog component for adding a new "Managed Participant" (placeholder)
- * to a group. It encapsulates the form logic and delegates the submission
- * action to its parent.
+ * A modal dialog for adding a "Managed Participant". It now uses the "Close and
+ * Defer" pattern to prevent focus-related race conditions upon submission.
  * @core-principles
  * 1. IS a self-contained component for a single user action.
  * 2. OWNS the local form state for the new participant's name.
- * 3. DELEGATES the submission logic to the parent component via the `onConfirm` callback.
+ * 3. MUST deterministically manage focus by closing itself before triggering a state update.
  * @api-declaration
  *   - default: The AddParticipantDialog React functional component.
  * @contract
@@ -28,6 +27,8 @@ import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 
+const DEFER_ACTION_MS = 50;
+
 interface AddParticipantDialogProps {
   open: boolean;
   onClose: () => void;
@@ -43,17 +44,22 @@ export const AddParticipantDialog: FC<AddParticipantDialogProps> = ({
 }) => {
   const [name, setName] = useState('');
 
-  // Reset name when the dialog is opened/closed
   useEffect(() => {
     if (!open) {
       setName('');
     }
   }, [open]);
 
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
     if (!name.trim()) return;
-    await onConfirm(name.trim());
+
+    // 1. Close the dialog immediately.
     onClose();
+    
+    // 2. Defer the state-changing action to the next event loop tick.
+    setTimeout(() => {
+      onConfirm(name.trim());
+    }, DEFER_ACTION_MS);
   };
 
   return (
