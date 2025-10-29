@@ -1,22 +1,23 @@
 /**
  * @file packages/whoseturnnow/src/features/dashboard/DashboardScreen.tsx
- * @stamp {"ts":"2025-10-24T08:16:00Z"}
+ * @stamp {"ts":"2025-10-29T02:15:00Z"}
  * @architectural-role UI Component, Orchestrator
  * @description
- * Renders the user's main dashboard. It now features larger, full-color emoji
- * icons for improved visual weight and scannability, vertically centered
- * against the list item text.
+ * Renders the user's main dashboard, which serves as the primary entry point
+ * after authentication. It displays a real-time list of the user's groups,
+ * provides the UI to create new lists, and contains the main application menu
+ * for accessing settings or logging out.
  * @core-principles
  * 1. IS the primary UI for displaying a user's collection of lists.
- * 2. MUST re-establish its data subscription when the connection mode transitions to 'live'.
- * 3. MUST render large, prominent emoji icons for each list.
+ * 2. OWNS the data subscription for the user's list of groups.
+ * 3. MUST provide the primary navigation points for creating a new list and logging out.
  * @api-declaration
  *   - default: The DashboardScreen React functional component.
  * @contract
  *   assertions:
  *     purity: mutates
  *     state_ownership: [groups, isLoading, isCreateDialogOpen]
- *     external_io: none
+ *     external_io: firestore
  */
 
 import { useState, useEffect, type FC } from 'react';
@@ -35,6 +36,8 @@ import Stack from '@mui/material/Stack';
 import Card from '@mui/material/Card';
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { signOut } from 'firebase/auth'; // <-- ADD THIS IMPORT
+import { auth } from '../../lib/firebase'; // <-- ADD THIS IMPORT
 import { useAuthStore } from '../auth/useAuthStore';
 import { groupsRepository } from '../groups/repository';
 import type { Group } from '../../types/group';
@@ -62,6 +65,13 @@ export const DashboardScreen: FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const settingsMenu = useMenuState();
+
+  // --- ADD THIS HANDLER FUNCTION ---
+  const handleLogout = () => {
+    signOut(auth);
+    settingsMenu.handleClose();
+  };
+  // ---------------------------------
 
   useAppBar({
     title: (
@@ -181,6 +191,9 @@ export const DashboardScreen: FC = () => {
         >
           Settings
         </MenuItem>
+        {/* --- ADD THIS MENU ITEM --- */}
+        <MenuItem onClick={handleLogout}>Log Out</MenuItem>
+        {/* --------------------------- */}
       </Menu>
     </>
   );
