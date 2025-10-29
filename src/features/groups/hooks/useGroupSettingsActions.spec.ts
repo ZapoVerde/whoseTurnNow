@@ -28,6 +28,7 @@ vi.mock('../repository');
 vi.mock('react-router-dom', () => ({
   useNavigate: vi.fn(),
 }));
+vi.mock('../../../shared/utils/debug'); // Mock the logger
 
 // --- Imports ---
 import { useGroupSettingsActions } from './useGroupSettingsActions';
@@ -66,6 +67,25 @@ describe('useGroupSettingsActions', () => {
     };
     return renderHook(() => useGroupSettingsActions(props));
   };
+
+  it('should call updateGroupSettings with the new name', async () => {
+    // ARRANGE
+    const { result } = renderTestHook();
+    mockUpdateSettings.mockResolvedValue(undefined);
+    const newName = 'A Brand New Name';
+
+    // ACT
+    await act(async () => {
+      await result.current.handleUpdateGroupName(newName);
+    });
+
+    // ASSERT
+    expect(mockUpdateSettings).toHaveBeenCalledWith(mockGroup.gid, {
+      name: newName,
+      icon: mockGroup.icon, // Verify the icon is preserved
+    });
+    expect(mockSetFeedback).toHaveBeenCalledWith({ message: 'Group name updated!', severity: 'success' });
+  });
 
   it('should call updateGroupSettings with the new icon', async () => {
     // ARRANGE

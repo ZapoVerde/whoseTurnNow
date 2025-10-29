@@ -5,8 +5,8 @@
  *
  * @description
  * A specialized action hook for managing high-level, administrative group
- * settings. It provides functions for updating a group's icon, deleting a
- * group, and resetting all turn counts.
+ * settings. It provides functions for updating a group's name and icon,
+ * deleting a group, and resetting all turn counts.
  *
  * @core-principles
  * 1. OWNS the command logic for all group-level administrative actions.
@@ -15,6 +15,7 @@
  *
  * @api-declaration
  *   - `useGroupSettingsActions`: The exported hook function.
+ *   - `returns.handleUpdateGroupName`: Updates the group's name.
  *   - `returns.handleUpdateGroupIcon`: Updates the group's icon.
  *   - `returns.handleConfirmDelete`: Deletes the group.
  *   - `returns.handleConfirmReset`: Resets all turn counts.
@@ -29,9 +30,9 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { groupsRepository } from '../repository';
+import { logger } from '../../../shared/utils/debug';
 import type { AppUser } from '../../auth/useAuthStore';
 import type { Group } from '../../../types/group';
-import { logger } from '../../../shared/utils/debug';
 
 interface GroupSettingsActionsProps {
   groupId: string | undefined;
@@ -47,6 +48,23 @@ export function useGroupSettingsActions({
   setFeedback,
 }: GroupSettingsActionsProps) {
   const navigate = useNavigate();
+
+  const handleUpdateGroupName = useCallback(
+    async (newName: string) => {
+      if (!groupId || !group) return;
+      try {
+        await groupsRepository.updateGroupSettings(groupId, {
+          name: newName,
+          icon: group.icon, // Preserve the existing icon
+        });
+        setFeedback({ message: 'Group name updated!', severity: 'success' });
+      } catch (error) {
+        logger.error('Failed to update group name:', { error });
+        setFeedback({ message: 'Failed to update name.', severity: 'error' });
+      }
+    },
+    [groupId, group, setFeedback],
+  );
 
   const handleUpdateGroupIcon = useCallback(
     async (newIcon: string) => {
@@ -88,6 +106,7 @@ export function useGroupSettingsActions({
   }, [groupId, user, setFeedback]);
 
   return {
+    handleUpdateGroupName,
     handleUpdateGroupIcon,
     handleConfirmDelete,
     handleConfirmReset,

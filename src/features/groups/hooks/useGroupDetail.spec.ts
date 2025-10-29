@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/hooks/useGroupDetail.spec.ts
- * @stamp {"ts":"2025-10-24T22:50:00Z"}
+ * @stamp {"ts":"2025-10-25T11:50:00Z"}
  * @architectural-role Verification
  * @test-target packages/whoseturnnow/src/features/groups/hooks/useGroupDetail.ts
  *
@@ -34,7 +34,6 @@ vi.mock('../useGroupStore');
 vi.mock('../../auth/useAuthStore');
 vi.mock('../../../shared/store/useAppStatusStore');
 vi.mock('./useGroupDerivedState');
-// --- THIS IS THE FIX (PART 1): Mock the new, granular hooks. ---
 vi.mock('./useTurnLifecycleActions');
 vi.mock('./useMembershipActions');
 vi.mock('./useGroupSettingsActions');
@@ -46,7 +45,6 @@ import { useGroupStore } from '../useGroupStore';
 import { useAuthStore } from '../../auth/useAuthStore';
 import { useAppStatusStore } from '../../../shared/store/useAppStatusStore';
 import { useGroupDerivedState } from './useGroupDerivedState';
-// --- THIS IS THE FIX (PART 2): Import the new hooks to be mocked. ---
 import { useTurnLifecycleActions } from './useTurnLifecycleActions';
 import { useMembershipActions } from './useMembershipActions';
 import { useGroupSettingsActions } from './useGroupSettingsActions';
@@ -74,7 +72,6 @@ vi.mocked(useGroupDerivedState).mockReturnValue({
   isLastAdmin: false,
   undoableAction: null,
 });
-// --- THIS IS THE FIX (PART 3): Provide default mocks for the new hooks. ---
 vi.mocked(useTurnLifecycleActions).mockReturnValue({} as any);
 vi.mocked(useMembershipActions).mockReturnValue({} as any);
 vi.mocked(useGroupSettingsActions).mockReturnValue({} as any);
@@ -117,7 +114,6 @@ describe('useGroupDetail Hook', () => {
     expect(mockLoadGroupAndLog).toHaveBeenCalledWith('group-123');
   });
 
-  // --- THIS IS THE FIX (PART 4): Update the test to reflect the new internal state management. ---
   it('should return the correctly composed view model', () => {
     // ARRANGE
     const mockDerivedState = {
@@ -143,9 +139,11 @@ describe('useGroupDetail Hook', () => {
     expect(result.current.turnLog.length).toBe(1);
     expect(result.current.isAdmin).toBe(true);
     expect(result.current.isUserTurn).toBe(true);
-    // Assert that the composed actions object from the various hooks is created.
     expect(result.current.actions).toBeDefined();
-    // Feedback is now internal state, so we just check its initial value.
     expect(result.current.feedback).toBeNull();
+    
+    // Verify the new dialog state is part of the hook's contract.
+    expect(result.current.changeNameDialog).toBeDefined();
+    expect(result.current.changeNameDialog.isOpen).toBe(false);
   });
 });
