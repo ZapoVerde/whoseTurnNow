@@ -1,6 +1,6 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/components/GroupManagementDialogs.tsx
- * @stamp {"ts":"2025-10-24T11:25:00Z"}
+ * @stamp {"ts":"2025-10-25T11:25:00Z"}
  * @architectural-role UI Component
  * @description
  * A composite "UI Kit" component that encapsulates all dialogs, menus, and
@@ -31,6 +31,7 @@ import Button from '@mui/material/Button';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import { AddParticipantDialog } from './AddParticipantDialog';
+import { ChangeGroupNameDialog } from './ChangeGroupNameDialog'; // Import the new dialog
 import { EmojiPickerPopover } from '../../../shared/components/EmojiPickerPopover';
 import type { useGroupDetail } from '../hooks/useGroupDetail';
 
@@ -76,13 +77,15 @@ type GroupManagementDialogsProps = Pick<
   | 'undoDialog'
   | 'skipDialog'
   | 'addParticipantDialog'
+  | 'changeNameDialog' // Add the new dialog state to the props
   | 'actions'
   | 'feedback'
   | 'undoableAction'
   | 'user'
+  | 'group' // We need the group for the current name
   | 'isAdmin'
   | 'isLastAdmin'
-  | 'isSubmitting' // <-- FIX 1: Add isSubmitting to the type
+  | 'isSubmitting'
 >;
 
 // The single, exported component
@@ -95,13 +98,15 @@ export const GroupManagementDialogs: React.FC<GroupManagementDialogsProps> = ({
     undoDialog,
     skipDialog,
     addParticipantDialog,
+    changeNameDialog, // Destructure the new dialog state
     actions,
     feedback,
     undoableAction,
     user,
+    group,
     isAdmin,
     isLastAdmin,
-    isSubmitting, // <-- FIX 2: Destructure the isSubmitting prop
+    isSubmitting,
 }) => {
     return (
         <>
@@ -109,12 +114,21 @@ export const GroupManagementDialogs: React.FC<GroupManagementDialogsProps> = ({
                 open={addParticipantDialog.isOpen}
                 onClose={addParticipantDialog.handleClose}
                 onConfirm={actions.handleAddParticipant}
-                isSubmitting={isSubmitting} 
+                isSubmitting={isSubmitting}
+            />
+
+            <ChangeGroupNameDialog
+                open={changeNameDialog.isOpen}
+                onClose={changeNameDialog.handleClose}
+                onConfirm={actions.handleConfirmNameChange}
+                isSubmitting={isSubmitting}
+                currentName={group?.name || ''}
             />
 
             <Menu anchorEl={groupMenu.anchorEl} open={groupMenu.isOpen} onClose={groupMenu.handleClose}>
                 {isAdmin && (
                     [
+                        <MenuItem key="change-name" onClick={() => { groupMenu.handleClose(); changeNameDialog.handleOpen(); }}>Change Name</MenuItem>,
                         <MenuItem key="change-icon" onClick={(e) => { groupMenu.handleClose(); iconPickerMenu.handleOpen(e); }}>Change Icon</MenuItem>,
                         <MenuItem key="reset-counts" onClick={resetDialog.handleOpen}>Reset All Turn Counts</MenuItem>,
                         <MenuItem key="delete-group" onClick={deleteDialog.handleOpen}>Delete Group</MenuItem>
@@ -139,7 +153,7 @@ export const GroupManagementDialogs: React.FC<GroupManagementDialogsProps> = ({
                             )}
                             <MenuItem onClick={actions.handleRemoveParticipant}>Remove Participant</MenuItem>
                         </>
-                    )}                    
+                    )}
                 </Menu>
             )}
 
