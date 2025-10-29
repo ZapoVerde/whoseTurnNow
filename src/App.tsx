@@ -1,16 +1,15 @@
 /**
  * @file packages/whoseturnnow/src/App.tsx
- * @stamp {"ts":"2025-10-23T08:16:00Z"}
+ * @stamp {"ts":"2025-10-29T04:00:00Z"}
  * @architectural-role Orchestrator
  * @description
  * The top-level React component. It owns the primary routing logic, initializes
- * the global authentication listener, and now also manages the "tab awaken"
- * trigger for the Circuit Breaker pattern, attempting to self-heal the
- * connection when the app becomes visible.
+ * the global authentication listener, and now also manages a "wake up" trigger
+ * to gracefully re-sync data when the app becomes visible on mobile devices.
  * @core-principles
  * 1. IS the composition root for the entire React application.
  * 2. OWNS the top-level routing and authentication lifecycle.
- * 3. MUST attempt to recover from a 'degraded' connection state when the tab is re-focused.
+ * 3. MUST attempt to recover from a stale data state when the tab is re-focused.
  * @api-declaration
  *   - default: The App React functional component.
  * @contract
@@ -28,7 +27,7 @@ import { useAuthStore } from './features/auth/useAuthStore';
 import { useFirebaseAuthListener } from './features/auth/useFirebaseAuthListener';
 import { MainLayout } from './shared/components/layout/MainLayout';
 import { NewUserHandshake } from './features/auth/NewUserHandshake';
-import { useAppStatusStore } from './shared/store/useAppStatusStore';
+import { useGroupStore } from './features/groups/useGroupStore';
 import { logger } from './shared/utils/debug';
 
 // Lazy-loaded Screen Components
@@ -90,25 +89,31 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      // Check if the page has become visible and if we're in a degraded state.
+      // Check if the page has become visible again after being hidden.
       if (document.visibilityState === 'visible') {
-        const { connectionMode, setConnectionMode } = useAppStatusStore.getState();
-        if (connectionMode === 'degraded') {
-          // --- DEBUG LOG ---
-          logger.info('[App] Tab became visible in degraded mode. Attempting to reconnect...');
-          setConnectionMode('live');
+        logger.info('[App] Tab became visible. Checking for stale data...');
+        
+        // Get the current state from the group store without subscribing.
+        const { group, loadGroupAndLog } = useGroupStore.getState();
+
+        // If a group is currently loaded, it means we are on a detail page.
+        // Re-trigger the data loading to tear down old listeners and create
+        // fresh ones, ensuring we get the latest state.
+        if (group?.gid) {
+          logger.info('[App] Active group found. Forcing data re-sync.');
+          loadGroupAndLog(group.gid);
         }
       }
     };
 
-    // Subscribe to the visibility change event
+    // Subscribe to the browser's visibility change event.
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Cleanup the event listener on component unmount
+    // Clean up the event listener when the App component unmounts.
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []); // Empty dependency array ensures this runs only once on mount.
+  }, []); // The empty dependency array ensures this runs only once on mount.
 
 
   return (
