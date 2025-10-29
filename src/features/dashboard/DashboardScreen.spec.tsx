@@ -4,7 +4,7 @@
  * @test-target packages/whoseturnnow/src/features/dashboard/DashboardScreen.tsx
  * @description
  * Verifies the dashboard correctly displays user groups, handles navigation,
- * and orchestrates core user actions like creating a list and logging out.
+ * and orchestrates core user actions like creating a group and logging out.
  * @criticality
  * Critical (Reason: I/O & Concurrency Management, Security & Authentication Context)
  * @testing-layer Integration
@@ -20,13 +20,10 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Mock } from 'vitest';
 import { signOut } from 'firebase/auth';
-// --- Import router components and MainLayout ---
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { MainLayout } from '../../shared/components/layout/MainLayout';
 
 // --- Mocks ---
-// vi.mock('react-router-dom') is no longer needed, as we use the real MemoryRouter.
-// We only need to mock the useNavigate hook used internally by the components.
 vi.mock('react-router-dom', async () => {
     const original = await vi.importActual('react-router-dom');
     return {
@@ -36,9 +33,11 @@ vi.mock('react-router-dom', async () => {
 });
 vi.mock('../auth/useAuthStore');
 vi.mock('../groups/repository');
-vi.mock('../groups/CreateListDialog', () => ({
-  CreateListDialog: vi.fn(({ open }) => (open ? <div>Create List Dialog Open</div> : null)),
+// --- THIS IS THE FIX (Part 1) ---
+vi.mock('../groups/CreateGroupDialog', () => ({
+  CreateGroupDialog: vi.fn(({ open }) => (open ? <div>Create Group Dialog Open</div> : null)),
 }));
+// --------------------------------
 
 // --- Imports ---
 import { useNavigate } from 'react-router-dom';
@@ -65,7 +64,6 @@ const mockGroups: Group[] = [
   { gid: 'group-2', name: 'Second Group', icon: '2️⃣', ownerUid: 'owner-2', participants: [{id: 'p2', uid: 'u2', nickname: 'Bob', role: 'member', turnCount: 2}], turnOrder: ['p2'], participantUids: { [mockUser.uid]: true }, adminUids: {} },
 ];
 
-// --- Create a reusable render function ---
 const renderTestComponent = () => {
     render(
         <MemoryRouter initialEntries={['/']}>
@@ -78,7 +76,6 @@ const renderTestComponent = () => {
     );
 };
 
-
 describe('DashboardScreen', () => {
   const mockNavigate = vi.fn();
 
@@ -87,7 +84,7 @@ describe('DashboardScreen', () => {
     mockUseNavigate.mockReturnValue(mockNavigate);
     mockUseAuthStore.mockImplementation((selector: (state: { user: AppUser | null }) => any) => selector({ user: mockUser }));
     mockGetUserGroups.mockImplementation((_userId, onUpdate) => {
-      onUpdate([]); // Immediately provide empty data to resolve loading state
+      onUpdate([]);
       return () => {};
     });
   });
@@ -99,7 +96,7 @@ describe('DashboardScreen', () => {
       return () => {};
     });
 
-    renderTestComponent(); // Use the new render function
+    renderTestComponent();
 
     await act(async () => {
       onUpdateCallback(mockGroups);
@@ -117,7 +114,7 @@ describe('DashboardScreen', () => {
       return () => {};
     });
 
-    renderTestComponent(); // Use the new render function
+    renderTestComponent();
     await act(async () => { onUpdateCallback(mockGroups); });
     
     const firstGroupButton = screen.getByText('First Group');
@@ -126,21 +123,22 @@ describe('DashboardScreen', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/group/group-1');
   });
 
-  it('should open the CreateListDialog when the FAB is clicked', async () => {
+  it('should open the CreateGroupDialog when the FAB is clicked', async () => {
     const user = userEvent.setup();
-    renderTestComponent(); // Use the new render function
+    renderTestComponent();
 
     const fab = screen.getByRole('button', { name: /add/i });
     await user.click(fab);
 
-    expect(screen.getByText('Create List Dialog Open')).toBeInTheDocument();
+    // --- THIS IS THE FIX (Part 2) ---
+    expect(screen.getByText('Create Group Dialog Open')).toBeInTheDocument();
+    // --------------------------------
   });
 
   it('should call signOut when the logout menu item is clicked', async () => {
     const user = userEvent.setup();
-    renderTestComponent(); // Use the new render function
+    renderTestComponent();
 
-    // The button will now be found because MainLayout is rendering the AppBar.
     const menuButton = screen.getByRole('button', { name: /Account settings/i });
     await user.click(menuButton);
 

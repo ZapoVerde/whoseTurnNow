@@ -1,16 +1,4 @@
 
-
----
-
-# **User Journey Specification: AiAnvil V1 (Whose Turn Now)**
-
-## **Document Role**
-This document details the complete, end-to-end user experience for the V1 application. It describes **what the user can do**, **what they see**, and **how the system should react**, independent of the underlying database or component structure.
-
-Of course. Now that the `User Journey.md` document has been fully updated with all new features and corrections, a revised skeleton outline is necessary to reflect its new, more comprehensive structure.
-
-Here is the updated skeleton outline.
-
 ---
 
 # **User Journey Specification: AiAnvil V1 (Whose Turn Now)**
@@ -22,7 +10,7 @@ This document details the complete, end-to-end user experience for the V1 applic
 
 ### **Section 1: Core Concepts & Terminology**
 *   **1.1 User Identity:** Defining **Global Name** vs. **Local Nickname**.
-*   **1.2 List Structure:** Defining **List** vs. **Group**, and **Participants** vs. **Users**.
+*   **1.2 Group Structure:** Defining **Group** and **Participants** vs. **Users**.
 *   **1.3 Governance:** Defining the **Council of Admins** and the **Last Admin Rule**.
 
 ### **Section 2: Flow 1 - Initial Entry & Authentication**
@@ -34,11 +22,11 @@ This document details the complete, end-to-end user experience for the V1 applic
     *   2.4 Session Termination (Log Out).
     *   2.5 The "First-Time Handshake."
 
-### **Section 3: Flow 2 - List Management (Creation & Dashboard)**
-*   **Goal:** Allow users to manage their collection of lists.
+### **Section 3: Flow 2 - Group Management (Creation & Dashboard)**
+*   **Goal:** Allow users to manage their collection of groups.
 *   **Sub-Flows:**
     *   3.1 Dashboard View.
-    *   3.2 List Creation.
+    *   3.2 Group Creation.
     *   3.3 Navigation to the Group Detail Page (Primary Interactive View).
 
 ### **Section 4: Flow 3 - The Core Turn Cycle (Interaction)**
@@ -51,7 +39,7 @@ This document details the complete, end-to-end user experience for the V1 applic
     *   **4.5 The Skip Turn Action.**
 
 ### **Section 5: Flow 4 - Group Administration & Governance**
-*   **Goal:** Enable collaborative management of the participant roster and list settings.
+*   **Goal:** Enable collaborative management of the participant roster and group settings.
 *   **Sub-Flows:**
     *   5.1 Role-Based UI Gating.
     *   5.2 Group-Level Management (Kebab Menu Actions).
@@ -61,7 +49,7 @@ This document details the complete, end-to-end user experience for the V1 applic
     *   **5.6 Admin-Initiated Turn Completion.**
 
 ### **Section 6: Flow 5 - Collaboration & Invitation**
-*   **Goal:** Enable users to invite new members to a list.
+*   **Goal:** Enable users to invite new members to a group.
 *   **Sub-Flows:**
     *   6.1 Invitation Link Generation (Generic vs. Targeted).
     *   6.2 The Invitee Experience (Landing Page).
@@ -90,21 +78,20 @@ This section establishes the user-facing vocabulary that governs all interaction
 
 ### **1.1 User Identity**
 
-The system recognizes two states for a user's identity, which dictates where their data is stored and how they can interact with lists.
+The system recognizes two states for a user's identity, which dictates where their data is stored and how they can interact with groups.
 
 | Term | Definition | Storage Location | Persistence |
 | :--- | :--- | :--- | :--- |
-| **Global Name** | The user's default, preferred name across all lists and the application settings. This is set on the global Settings page. | `/users/{uid}` document | Permanent (even for anonymous users after first login/handoff). |
-| **Local Nickname** | An optional, group-specific override for a participant's name. This can be set by a user for themselves, or by an admin for any participant, via the on-click contextual menu in the participant list. | `TurnParticipant.nickname` in the `/groups/{gid}` document. | Local to the specific Group/List. |
+| **Global Name** | The user's default, preferred name across all groups and the application settings. This is set on the global Settings page. | `/users/{uid}` document | Permanent (even for anonymous users after first login/handoff). |
+| **Local Nickname** | An optional, group-specific override for a participant's name. This can be set by a user for themselves, or by an admin for any participant, via the on-click contextual menu in the participant list. | `TurnParticipant.nickname` in the `/groups/{gid}` document. | Local to the specific Group. |
 | **Anonymous User** | A user signed in via an ephemeral, temporary Auth token. They have a `Global Name` but no associated email/password. | `/users/{uid}` document (with `email: null`). | Data is preserved upon upgrade, but the session is not persistent without an upgrade. |
 | **Registered User**| A user signed in with permanent credentials (Email/Password or Social Provider). | `/users/{uid}` document (with `email` present). | Persistent. |
 
-### **1.2 List Structure**
+### **1.2 Group Structure**
 
-The primary organizing principle of the application is the **List**.
+The primary organizing principle of the application is the **Group**. The term "Group" is used consistently in both the UI and the backend data model.
 
-*   **List (User Term) vs. Group (Data Term):** The user interacts with a **List**; the backend stores it as a **Group** document.
-*   **Participant Slot:** A position in the turn queue. Each slot has a unique, fixed **Participant ID** (`TurnParticipant.id`) for the duration of the list's life.
+*   **Participant Slot:** A position in the turn queue. Each slot has a unique, fixed **Participant ID** (`TurnParticipant.id`) for the duration of the group's life.
 *   **Membership Status:**
     *   A participant is **Linked** if their `uid` field in the slot is populated with a user's ID.
     *   A participant is a **Managed Placeholder** if their `uid` field is `null`.
@@ -113,14 +100,14 @@ The primary organizing principle of the application is the **List**.
 
 The application enforces a democratic management structure.
 
-*   **Admin Role:** A participant with the `role: 'admin'` has the authority to manage the list's roster, settings, and history.
+*   **Admin Role:** A participant with the `role: 'admin'` has the authority to manage the group's roster, settings, and history.
 *   **Council of Admins:** All admins have **equal power**. There is no singular "owner" role that supersedes the admin consensus.
-*   **The "Last Admin" Rule:** The system *must* prevent any action that would result in a list having zero administrators (i.e., preventing the last admin from leaving or demoting themselves).
+*   **The "Last Admin" Rule:** The system *must* prevent any action that would result in a group having zero administrators (i.e., preventing the last admin from leaving or demoting themselves).
 
 
 ## **Section 2: Flow 1 - Initial Entry & Authentication**
 
-**Goal:** Securely establish or retrieve the user's identity and persist their global identifier/name before they interact with any list data.
+**Goal:** Securely establish or retrieve the user's identity and persist their global identifier/name before they interact with any group data.
 
 ### **2.1 Anonymous Session Start (Instant Access)**
 
@@ -164,30 +151,28 @@ This flow runs **immediately after successful authentication** (for any new acco
 
 ---
 
+## **Section 3: Flow 2 - Group Creation & Dashboard Viewing**
 
+**Goal:** Allow authenticated users to view their existing groups and initiate the creation of a new group.
 
-## **Section 3: Flow 2 - List Creation & Dashboard Viewing**
-
-**Goal:** Allow authenticated users to view their existing lists and initiate the creation of a new list, fulfilling the foundational organizing principle of the application.
-
-### **3.1 Dashboard View: Displaying User Lists**
+### **3.1 Dashboard View: Displaying User Groups**
 
 This view is the landing page for authenticated users (anonymous or permanent).
 
 1.  **Initial State:** The user lands on the Dashboard.
 2.  **System Action (Data Fetch):** The application immediately queries Firestore for all `Group` documents where the user's authenticated `uid` is present in the **`participantUids`** array.
-3.  **System State (Real-Time):** The list of groups updates in real-time as the user joins or is invited to new lists.
-4.  **User View:** The list displays each accessible group using its **emoji icon** and **list name**.
-5.  **Anonymous User Condition:** If the user is anonymous, a persistent, non-intrusive banner is displayed at the top of the screen stating: *"Save your progress! Create a permanent account to keep your lists forever."*
-6.  **Navigation:** Clicking on any list item navigates the user to the **Group Detail Page** (`/group/{groupId}`).
+3.  **System State (Real-Time):** The list of groups updates in real-time as the user joins or is invited to new groups.
+4.  **User View:** The dashboard displays each accessible group using its **emoji icon** and **group name**.
+5.  **Anonymous User Condition:** If the user is anonymous, a persistent, non-intrusive banner is displayed at the top of the screen stating: *"Save your progress! Create a permanent account to keep your groups forever."*
+6.  **Navigation:** Clicking on any group item navigates the user to the **Group Detail Page** (`/group/{groupId}`).
 
-### **3.2 List Creation Workflow**
+### **3.2 Group Creation Workflow**
 
-This flow is initiated from the Dashboard via a prominent **Create New List** action (e.g., a Floating Action Button).
+This flow is initiated from the Dashboard via a prominent **Create New Group** action (e.g., a Floating Action Button).
 
 1.  **User Action (Input):** The system presents a modal/dialog prompting for two inputs:
-    *   **List Name:** A required string input.
-    *   **List Icon:** A selection interface for choosing a Unicode emoji.
+    *   **Group Name:** A required string input.
+    *   **Group Icon:** A selection interface for choosing a Unicode emoji.
 2.  **User Action (Confirmation):** The user confirms the creation.
 3.  **System Action (Atomic Write - Group Creation):** A single transaction/write operation creates the new `Group` document in Firestore, which includes:
     *   A new unique `gid`.
@@ -197,11 +182,11 @@ This flow is initiated from the Dashboard via a prominent **Create New List** ac
     *   The creator's `uid` added to the new `participantUids` array.
     *   The creator's participant ID added to the `turnOrder` array.
     *   The creation of the first **Log Entry** (`COUNTS_RESET` or a special `GROUP_CREATED` event) in the `turnLog`.
-4.  **System Action (Navigation):** Upon successful write, the application programmatically redirects the user to the new list's detail page: `/group/{groupId}`.
+4.  **System Action (Navigation):** Upon successful write, the application programmatically redirects the user to the new group's detail page: `/group/{groupId}`.
 
 ### **3.3 Group Detail Page (Primary Interactive View)**
 
-This view is the main hub for all interactions with a specific list, reached after creation or by navigating from the Dashboard.
+This view is the main hub for all interactions with a specific group, reached after creation or by navigating from the Dashboard.
 
 1.  **System Action (Data Fetch):** The page establishes real-time listeners for the specific `Group` document and its `turnLog` sub-collection, based on the ID in the URL.
 2.  **User View:** The page displays the group's **icon and name** in the header and the full, interactive participant list. This is where all core actions, such as taking turns, skipping turns, and group management, are performed.
@@ -265,7 +250,7 @@ This flow provides a way for a user to voluntarily give up their turn.
 
 ## **Section 5: Flow 4 - Group Management & Administration**
 
-**Goal:** Empower users with the `admin` role to collaboratively manage the participant roster, list settings, and clear the turn history, all while enforcing critical governance rules.
+**Goal:** Empower users with the `admin` role to collaboratively manage the participant roster, group settings, and clear the turn history, all while enforcing critical governance rules.
 
 ### **5.1 Role-Based UI Gating**
 
@@ -278,11 +263,12 @@ The visibility of administrative controls is strictly based on the current user'
 
 ### **5.2 Group-Level Management (Kebab Menu Actions)**
 
-These actions affect the list as a whole. They all trigger a high-friction confirmation step before executing the database write.
+These actions affect the group as a whole. They all trigger a high-friction confirmation step before executing the database write.
 
 | Action | Triggered By | Effect on Data | Logged Event |
 | :--- | :--- | :--- | :--- |
-| **Change List Name/Icon** | Admin | Updates the `name` and `icon` fields in the main `Group` document. | None (Configuration change is implicitly tracked by the log, but no dedicated log entry required). |
+| **View Options (Toggles)** | Admin | Toggles the client-side visibility of turn counts and the turn history panel. This is a transient UI state and is not saved. | None. |
+| **Change Group Name/Icon** | Admin | Updates the `name` and `icon` fields in the main `Group` document. | None (Configuration change is implicitly tracked by the log, but no dedicated log entry required). |
 | **Reset All Turn Counts** | Admin $\rightarrow$ Confirmation Dialog | Updates the `turnCount` for **every** participant in the `participants` array to **0**. The **`turnOrder` array is explicitly preserved.** | **`COUNTS_RESET`** log entry created. |
 | **Delete Group** | Admin $\rightarrow$ High-Friction Confirmation | Deletes the entire `/groups/{groupId}` document and its sub-collections. | Not explicitly logged (deletion is final). |
 
@@ -309,7 +295,7 @@ This is a critical safety net implemented in **both the client-side UI logic and
 ### **5.5 Participant Self-Action**
 
 1.  **User Action:** Any participant clicks on their own row in the queue.
-2.  **Result:** A menu appears allowing them to change their **Local Nickname** for this list only. This updates the `nickname` field in their `TurnParticipant` object.
+2.  **Result:** A menu appears allowing them to change their **Local Nickname** for this group only. This updates the `nickname` field in their `TurnParticipant` object.
 
 ### **5.6 Admin-Initiated Turn Completion**
 
@@ -325,7 +311,7 @@ This flow allows an admin to manage the turn queue on behalf of others.
 
 ## **Section 6: Flow 5 - Participant Invitations & The "Hand-off" Flow**
 
-**Goal:** Implement the full suite of social features that allow **Registered Users** to join an existing list, including support for inviting new users and claiming existing placeholder slots.
+**Goal:** Implement the full suite of social features that allow **Registered Users** to join an existing group, including support for inviting new users and claiming existing placeholder slots.
 
 ### **6.1 Invitation Link Generation (Admin Action)**
 
@@ -347,7 +333,7 @@ When an invitee clicks a shared link, they are routed to a dedicated, context-aw
 
 1.  **System Action (URL Parsing):** The application parses the URL to determine the `groupId` and checks for the optional `participantId` query parameter.
 2.  **System State (Context):** The page loads a specific contextual message based on the URL parsing:
-    *   **If `participantId` is missing:** Message indicates joining a new slot (e.g., *"You've been invited to join the 'Office Chores' list!"*).
+    *   **If `participantId` is missing:** Message indicates joining a new slot (e.g., *"You've been invited to join the 'Office Chores' group!"*).
     *   **If `participantId` is present:** Message indicates claiming a specific slot (e.g., *"You've been invited to take over the 'Billy' spot in 'Office Chores'!"*).
 3.  **Authentication Prompt:** If the invitee is not authenticated, they are presented with the standard **Login/Sign Up** options (Flow 1).
 
