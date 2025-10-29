@@ -43,6 +43,8 @@ export function useGroupDetail(groupId: string | undefined) {
   const user = useAuthStore((state) => state.user);
   const { group, turnLog, isLoading, loadGroupAndLog, cleanup } = useGroupStore();
   const connectionMode = useAppStatusStore((state) => state.connectionMode);
+  const [showTurnCounts, setShowTurnCounts] = useState(true);
+  const [showTurnHistory, setShowTurnHistory] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
@@ -206,7 +208,11 @@ export function useGroupDetail(groupId: string | undefined) {
     undoDialog,
     skipDialog,
     addParticipantDialog,
-    changeNameDialog, // Expose the new dialog state
+    changeNameDialog, 
     actions: composedActions,
+    showTurnCounts,
+    setShowTurnCounts,
+    showTurnHistory,
+    setShowTurnHistory,
   };
 }

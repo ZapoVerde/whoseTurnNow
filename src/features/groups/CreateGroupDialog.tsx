@@ -1,16 +1,16 @@
 /**
- * @file packages/whoseturnnow/src/features/groups/CreateListDialog.tsx
- * @stamp {"ts":"2025-10-23T11:45:00Z"}
+ * @file packages/whoseturnnow/src/features/groups/CreateGroupDialog.tsx
+ * @stamp {"ts":"2025-10-29T03:00:00Z"}
  * @architectural-role UI Component
  * @description
- * A modal component for creating a new list. It now uses the "Close and Defer"
+ * A modal component for creating a new group. It uses the "Close and Defer"
  * pattern to prevent focus-related race conditions upon submission.
  * @core-principles
- * 1. OWNS the UI state for the list creation form.
+ * 1. OWNS the UI state for the group creation form.
  * 2. MUST validate user input before proceeding.
  * 3. MUST deterministically manage focus by closing itself before triggering navigation.
  * @api-declaration
- *   - default: The CreateListDialog React functional component.
+ *   - default: The CreateGroupDialog React functional component.
  * @contract
  *   assertions:
  *     purity: mutates
@@ -39,12 +39,12 @@ import { logger } from '../../shared/utils/debug';
 
 const DEFER_ACTION_MS = 50;
 
-interface CreateListDialogProps {
+interface CreateGroupDialogProps {
   open: boolean;
   onClose: () => void;
 }
 
-export const CreateListDialog: FC<CreateListDialogProps> = ({ open, onClose }) => {
+export const CreateGroupDialog: FC<CreateGroupDialogProps> = ({ open, onClose }) => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const [name, setName] = useState('');
@@ -64,10 +64,8 @@ export const CreateListDialog: FC<CreateListDialogProps> = ({ open, onClose }) =
     }
 
     setIsSubmitting(true);
-    // 1. Close the dialog immediately to start the unmount animation.
     handleClose();
 
-    // 2. Defer the expensive operation to the next event loop tick.
     setTimeout(async () => {
       try {
         const newGroupId = await groupsRepository.createGroup({
@@ -87,7 +85,7 @@ export const CreateListDialog: FC<CreateListDialogProps> = ({ open, onClose }) =
   return (
     <>
       <Dialog open={open} onClose={handleClose} fullWidth maxWidth="xs">
-        <DialogTitle>Create a New List</DialogTitle>
+        <DialogTitle>Create a New Group</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
             <IconButton
@@ -106,7 +104,7 @@ export const CreateListDialog: FC<CreateListDialogProps> = ({ open, onClose }) =
               autoFocus
               margin="dense"
               id="name"
-              label="List Name"
+              label="Group Name"
               type="text"
               fullWidth
               variant="standard"

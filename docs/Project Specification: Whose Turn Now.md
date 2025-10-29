@@ -39,7 +39,7 @@ The project is built in six sequential, verifiable stages, all adhering to the c
 | **Stage 1** | **Identity & Session Foundation** | Complete Authentication (Anonymous/Registered), Global Name management, and root routing. |
 | **Stage 2** | **Core Data Entity & Dashboard** | Implement the `Group` entity CRUD, secure creation logic, and the user's dashboard view. |
 | **Stage 3** | **Dynamic Turn Cycle & Logging** | Implement the core interactive loop: dynamic queue, context-aware action button, and immutable `turnLog` for completed turns. |
-| **Stage 4** | **Group Administration & Governance** | Implement all admin controls: Role management, list settings modification, turn count resets, and enforcement of the "Last Admin" rule. |
+| **Stage 4** | **Group Administration & Governance** | Implement all admin controls: Role management, group settings modification, turn count resets, and enforcement of the "Last Admin" rule. |
 | **Stage 5** | **Social & Invitation System** | Implement generic and targeted invitation links, the joining flow, and logic for new users to claim placeholder spots. |
 | **Stage 6** | **User Experience Safety Net** | Implement the LIFO "Undo Stack" feature, which reverts state, updates counts, and creates a transparent `TURN_UNDONE` log entry. |
 
@@ -50,8 +50,7 @@ The project is built in six sequential, verifiable stages, all adhering to the c
 This section details the complete user journey from start to finish, consolidating all operational narratives from the previous flow documents.
 
 ### **Core Concepts**
-*   **List vs. Group:** "List" is the user-facing term; "Group" is the technical Firestore document.
-*   **Participant Types:** A list slot can be a **Managed Participant** (`uid: null`) or a **Linked User** (`uid` is present).
+*   **Participant Types:** A group slot can be a **Managed Participant** (`uid: null`) or a **Linked User** (`uid` is present).
 *   **Name Context:** Users have a **Global Name** (on `/users/{uid}`) and an optional **Local Nickname** (on the `TurnParticipant` object).
 
 ### **End-to-End User Journeys**
@@ -59,8 +58,8 @@ This section details the complete user journey from start to finish, consolidati
 #### **Flow 1: First-Time Onboarding (Identity)**
 A user lands on the site and chooses **"Try it Now Instantly"** (anonymous session) or **"Sign Up/Log In"** (permanent account). The system performs the **First-Time Handshake** to capture their **Global Name** on their `/users/{uid}` profile document. Anonymous users are prompted to upgrade seamlessly.
 
-#### **Flow 2: List Creation & Dashboard**
-The user sees their **Dashboard** of lists. They click **"Create New List"** to provide a name and emoji icon. A new `Group` document is created, and they are the first participant with the `admin` role. They are navigated to the **Group Detail Page**.
+#### **Flow 2: group Creation & Dashboard**
+The user sees their **Dashboard** of groups. They click **"Create New group"** to provide a name and emoji icon. A new `Group` document is created, and they are the first participant with the `admin` role. They are navigated to the **Group Detail Page**.
 
 #### **Flow 3: Core Turn Cycle (Interaction)**
 On the **Group Detail Page**, the user sees the dynamic queue where **the person at `turnOrder[0]` is next**.
@@ -69,9 +68,9 @@ On the **Group Detail Page**, the user sees the dynamic queue where **the person
 *   The **Turn History** log displays a reverse-chronological audit trail of all completed turns.
 
 #### **Flow 4: Group Management (Governance)**
-Available to any user with the **`admin` role** in the list, accessible via the header kebab menu or contextual click menus.
+Available to any user with the **`admin` role** in the group, accessible via the header kebab menu or contextual click menus.
 *   **Participant Management:** Admins can Promote/Demote members, Remove participants, or Edit placeholder names. The system enforces the **"Last Admin" Rule**, preventing the removal/demotion of the final admin.
-*   **List Settings:** Admins can change the group's name/icon.
+*   **group Settings:** Admins can change the group's name/icon.
 *   **Reset Counts:** Admins can reset all participant `turnCount`s to zero via a high-friction confirmation, which logs a **`COUNTS_RESET`** event.
 
 #### **Flow 5: Invitations & Collaboration**

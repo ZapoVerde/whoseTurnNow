@@ -1,11 +1,12 @@
 /**
  * @file packages/whoseturnnow/src/features/groups/components/GroupManagementDialogs.tsx
- * @stamp {"ts":"2025-10-25T11:25:00Z"}
+ * @stamp {"ts":"2025-10-29T03:15:00Z"}
  * @architectural-role UI Component
  * @description
  * A composite "UI Kit" component that encapsulates all dialogs, menus, and
  * popovers for the Group Detail feature, serving as a pure, presentational
- * layer controlled entirely by its parent.
+ * layer controlled entirely by its parent. It now includes the checkbox
+ * controls for toggling UI visibility.
  * @core-principles
  * 1. IS a pure, presentational ("dumb") component.
  * 2. MUST receive all its state and handlers via props.
@@ -30,8 +31,10 @@ import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Checkbox from '@mui/material/Checkbox';
 import { AddParticipantDialog } from './AddParticipantDialog';
-import { ChangeGroupNameDialog } from './ChangeGroupNameDialog'; // Import the new dialog
+import { ChangeGroupNameDialog } from './ChangeGroupNameDialog';
 import { EmojiPickerPopover } from '../../../shared/components/EmojiPickerPopover';
 import type { useGroupDetail } from '../hooks/useGroupDetail';
 
@@ -77,15 +80,19 @@ type GroupManagementDialogsProps = Pick<
   | 'undoDialog'
   | 'skipDialog'
   | 'addParticipantDialog'
-  | 'changeNameDialog' // Add the new dialog state to the props
+  | 'changeNameDialog'
   | 'actions'
   | 'feedback'
   | 'undoableAction'
   | 'user'
-  | 'group' // We need the group for the current name
+  | 'group'
   | 'isAdmin'
   | 'isLastAdmin'
   | 'isSubmitting'
+  | 'showTurnCounts'
+  | 'setShowTurnCounts'
+  | 'showTurnHistory'
+  | 'setShowTurnHistory'
 >;
 
 // The single, exported component
@@ -98,7 +105,7 @@ export const GroupManagementDialogs: React.FC<GroupManagementDialogsProps> = ({
     undoDialog,
     skipDialog,
     addParticipantDialog,
-    changeNameDialog, // Destructure the new dialog state
+    changeNameDialog,
     actions,
     feedback,
     undoableAction,
@@ -107,6 +114,10 @@ export const GroupManagementDialogs: React.FC<GroupManagementDialogsProps> = ({
     isAdmin,
     isLastAdmin,
     isSubmitting,
+    showTurnCounts,
+    setShowTurnCounts,
+    showTurnHistory,
+    setShowTurnHistory,
 }) => {
     return (
         <>
@@ -128,13 +139,26 @@ export const GroupManagementDialogs: React.FC<GroupManagementDialogsProps> = ({
             <Menu anchorEl={groupMenu.anchorEl} open={groupMenu.isOpen} onClose={groupMenu.handleClose}>
                 {isAdmin && (
                     [
+                        <MenuItem key="toggle-counts" onClick={(e) => e.stopPropagation()}>
+                            <FormControlLabel
+                                control={<Checkbox checked={showTurnCounts} onChange={(e) => setShowTurnCounts(e.target.checked)} />}
+                                label="Show Counts"
+                                sx={{ pl: 0.5, pr: 1 }}
+                            />
+                        </MenuItem>,
+                        <MenuItem key="toggle-history" onClick={(e) => e.stopPropagation()}>
+                            <FormControlLabel
+                                control={<Checkbox checked={showTurnHistory} onChange={(e) => setShowTurnHistory(e.target.checked)} />}
+                                label="Show History"
+                                sx={{ pl: 0.5, pr: 1 }}
+                            />
+                        </MenuItem>,
                         <MenuItem key="change-name" onClick={() => { groupMenu.handleClose(); changeNameDialog.handleOpen(); }}>Change Name</MenuItem>,
                         <MenuItem key="change-icon" onClick={(e) => { groupMenu.handleClose(); iconPickerMenu.handleOpen(e); }}>Change Icon</MenuItem>,
                         <MenuItem key="reset-counts" onClick={resetDialog.handleOpen}>Reset All Turn Counts</MenuItem>,
                         <MenuItem key="delete-group" onClick={deleteDialog.handleOpen}>Delete Group</MenuItem>
                     ]
                 )}
-                {/* --- This action is visible to all members --- */}
                 <MenuItem onClick={actions.handleLeaveGroup} disabled={isLastAdmin}>Leave Group</MenuItem>
             </Menu>
 
