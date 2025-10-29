@@ -1,0 +1,48 @@
+# .github/workflows/deploy.yml
+
+name: 'Deploy Whose Turn Now to Firebase'
+
+on:
+  push:
+    branches:
+      - main # This workflow only runs on pushes to the main branch
+
+jobs:
+  build_and_deploy:
+    name: 'Build and Deploy'
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Get the code from the repository
+      - name: 'Checkout code'
+        uses: actions/checkout@v4
+
+      # Step 2: Set up pnpm
+      - name: 'Set up pnpm'
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      # Step 3: Set up Node.js
+      - name: 'Set up Node.js'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      # Step 4: Install all project dependencies
+      - name: 'Install dependencies'
+        run: pnpm install
+
+      # Step 5: Run the build command for the application
+      - name: 'Run build'
+        run: pnpm --filter @aianvil/whoseturnnow build
+
+      # Step 6: Deploy to Firebase Hosting
+      - name: 'Deploy to Firebase'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_WHOSETURNNOW }}'
+          channelId: live
+          projectId: 'your-whoseturnnow' 
