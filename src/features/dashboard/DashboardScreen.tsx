@@ -1,22 +1,23 @@
 /**
  * @file packages/whoseturnnow/src/features/dashboard/DashboardScreen.tsx
- * @stamp {"ts":"2025-10-24T08:16:00Z"}
+ * @stamp {"ts":"2025-10-29T02:15:00Z"}
  * @architectural-role UI Component, Orchestrator
  * @description
- * Renders the user's main dashboard. It now features larger, full-color emoji
- * icons for improved visual weight and scannability, vertically centered
- * against the list item text.
+ * Renders the user's main dashboard, which serves as the primary entry point
+ * after authentication. It displays a real-time list of the user's groups,
+ * provides the UI to create new groups, and contains the main application menu
+ * for accessing settings or logging out.
  * @core-principles
- * 1. IS the primary UI for displaying a user's collection of lists.
- * 2. MUST re-establish its data subscription when the connection mode transitions to 'live'.
- * 3. MUST render large, prominent emoji icons for each list.
+ * 1. IS the primary UI for displaying a user's collection of groups.
+ * 2. OWNS the data subscription for the user's list of groups.
+ * 3. MUST provide the primary navigation points for creating a new group and logging out.
  * @api-declaration
  *   - default: The DashboardScreen React functional component.
  * @contract
  *   assertions:
  *     purity: mutates
  *     state_ownership: [groups, isLoading, isCreateDialogOpen]
- *     external_io: none
+ *     external_io: firestore
  */
 
 import { useState, useEffect, type FC } from 'react';
@@ -35,17 +36,19 @@ import Stack from '@mui/material/Stack';
 import Card from '@mui/material/Card';
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { signOut } from 'firebase/auth';
+import { auth } from '../../lib/firebase';
 import { useAuthStore } from '../auth/useAuthStore';
 import { groupsRepository } from '../groups/repository';
 import type { Group } from '../../types/group';
-import { CreateListDialog } from '../groups/CreateListDialog';
+import { CreateGroupDialog } from '../groups/CreateGroupDialog'; // <-- UPDATED IMPORT
 import { useAppBar } from '../../shared/hooks/useAppBar';
 import { useMenuState } from '../groups/hooks/useMenuState';
 import { useAppStatusStore } from '../../shared/store/useAppStatusStore';
 
 const getNextParticipantName = (group: Group): string => {
   if (!group.turnOrder || group.turnOrder.length === 0) {
-    return 'No one is in the list';
+    return 'No one is in the group';
   }
   const nextParticipantId = group.turnOrder[0];
   const nextParticipant = group.participants.find(
@@ -62,6 +65,11 @@ export const DashboardScreen: FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const settingsMenu = useMenuState();
+
+  const handleLogout = () => {
+    signOut(auth);
+    settingsMenu.handleClose();
+  };
 
   useAppBar({
     title: (
@@ -107,7 +115,7 @@ export const DashboardScreen: FC = () => {
           </Box>
         ) : groups.length === 0 ? (
           <Typography align="center" color="text.secondary" sx={{ p: 4 }}>
-            No lists yet. Create one to get started!
+            No groups yet. Create one to get started! {/* <-- UPDATED TEXT */}
           </Typography>
         ) : (
           <Stack spacing={1}>
@@ -164,7 +172,7 @@ export const DashboardScreen: FC = () => {
       >
         <AddIcon />
       </Fab>
-      <CreateListDialog
+      <CreateGroupDialog // <-- UPDATED COMPONENT
         open={isCreateDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
       />
@@ -181,6 +189,7 @@ export const DashboardScreen: FC = () => {
         >
           Settings
         </MenuItem>
+        <MenuItem onClick={handleLogout}>Log Out</MenuItem>
       </Menu>
     </>
   );

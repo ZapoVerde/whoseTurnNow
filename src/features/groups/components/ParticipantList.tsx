@@ -41,6 +41,7 @@ interface ParticipantListProps {
   onInviteToClaim: (participantId: string) => void;
   isAdmin: boolean;
   isUserTurn: boolean;
+  showTurnCounts: boolean;
 }
 
 export const ParticipantList: FC<ParticipantListProps> = ({
@@ -50,6 +51,7 @@ export const ParticipantList: FC<ParticipantListProps> = ({
   onInviteToClaim,
   isAdmin,
   isUserTurn,
+  showTurnCounts,
 }) => {
   const theme = useTheme();
 
@@ -85,7 +87,7 @@ export const ParticipantList: FC<ParticipantListProps> = ({
                 {firstParticipant.nickname || 'Unnamed'}
               </Typography>
             }
-            secondary={`Turns: ${firstParticipant.turnCount}`}
+            secondary={showTurnCounts ? `Turns: ${firstParticipant.turnCount}` : ' '}
           />
           {firstParticipant.role === 'admin' && (
             <Chip icon={<AdminPanelSettingsIcon />} label="Admin" size="small" sx={{ ml: 1 }} />
@@ -132,7 +134,7 @@ export const ParticipantList: FC<ParticipantListProps> = ({
                       {participant.nickname || 'Unnamed'}
                     </Typography>
                   }
-                  secondary={`Turns: ${participant.turnCount}`}
+                  secondary={showTurnCounts ? `Turns: ${participant.turnCount}` : ' '}
                 />
                 {participant.role === 'admin' && (
                   <Chip icon={<AdminPanelSettingsIcon />} label="Admin" size="small" sx={{ ml: 1 }} />

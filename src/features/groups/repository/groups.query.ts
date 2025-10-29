@@ -43,51 +43,63 @@ import type { Group, LogEntry } from '../../../types/group';
 const FIREBASE_RESOURCE_EXHAUSTED = 'resource-exhausted';
 
 /**
- * A private, generic helper that implements the circuit breaker logic.
- * It now accepts a `transform` function to handle different data shapes.
+ * [REFACTOR] A new, standalone, and easily testable function that contains
+ * the core "Circuit Breaker" logic.
+ */
+export async function handleListenerError<T>(
+  error: FirestoreError,
+  q: Query | DocumentReference,
+  onUpdate: (data: T) => void,
+  transform: (snapshot: any) => T,
+) {
+  logger.error('[CircuitBreaker] Listener error:', {
+    code: error.code,
+    message: error.message,
+  });
+
+  if (error.code === FIREBASE_RESOURCE_EXHAUSTED) {
+    logger.warn('[CircuitBreaker] TRIPPED! Degrading to static fetch.');
+    useAppStatusStore.getState().setConnectionMode('degraded');
+
+    try {
+      const staticSnapshot =
+        q.type === 'document' ? await getDoc(q) : await getDocs(q as Query);
+      const data = transform(staticSnapshot);
+      onUpdate(data);
+    } catch (staticFetchError: unknown) {
+      logger.error('[CircuitBreaker] Fallback static fetch also failed:', {
+        error: staticFetchError,
+      });
+    }
+  }
+}
+
+/**
+ * The listener is a simple, "dumb" wrapper. Its only job is
+ * to subscribe and delegate the complex error handling to our testable function.
  */
 function createResilientListener<T>(
   q: Query | DocumentReference,
   onUpdate: (data: T) => void,
   transform: (snapshot: any) => T,
 ): Unsubscribe {
-  const { setConnectionMode } = useAppStatusStore.getState();
-
-  const unsubscribe = onSnapshot(
+  if (!q) {
+    logger.warn('[CircuitBreaker] Received a null query. Aborting listener creation.');
+    return () => {};
+  }
+  
+  return onSnapshot(
     q as Query,
     (snapshot: any) => {
       logger.debug('[CircuitBreaker] Real-time update received. Ensuring LIVE mode.');
-      setConnectionMode('live');
+      useAppStatusStore.getState().setConnectionMode('live');
       const data = transform(snapshot);
       onUpdate(data);
     },
-    async (error: FirestoreError) => {
-      // THIS IS THE FIX: The error data is now in a single context object.
-      logger.error('[CircuitBreaker] Listener error:', {
-        code: error.code,
-        message: error.message,
-      });
-
-      if (error.code === FIREBASE_RESOURCE_EXHAUSTED) {
-        logger.warn('[CircuitBreaker] TRIPPED! Degrading to static fetch.');
-        setConnectionMode('degraded');
-
-        try {
-          const staticSnapshot =
-            q.type === 'document' ? await getDoc(q) : await getDocs(q as Query);
-          const data = transform(staticSnapshot);
-          onUpdate(data);
-        } catch (staticFetchError: unknown) {
-          logger.error('[CircuitBreaker] Fallback static fetch also failed:', {
-            error: staticFetchError,
-          });
-        }
-      }
-    },
+    (error) => handleListenerError(error, q, onUpdate, transform),
   );
-
-  return unsubscribe;
 }
+
 
 export function getUserGroups(
   userId: string,
@@ -131,7 +143,6 @@ export function getGroupTurnLog(
   const logsCollectionRef = collection(db, 'groups', groupId, 'turnLog');
   const q = query(logsCollectionRef, orderBy('completedAt', 'desc'), limit(50));
 
-  // REFACTORED: Now uses the single, resilient helper function.
   return createResilientListener<(LogEntry & { id: string })[]>(
     q,
     onUpdate,

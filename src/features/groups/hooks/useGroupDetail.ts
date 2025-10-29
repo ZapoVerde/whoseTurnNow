@@ -43,6 +43,8 @@ export function useGroupDetail(groupId: string | undefined) {
   const user = useAuthStore((state) => state.user);
   const { group, turnLog, isLoading, loadGroupAndLog, cleanup } = useGroupStore();
   const connectionMode = useAppStatusStore((state) => state.connectionMode);
+  const [showTurnCounts, setShowTurnCounts] = useState(true);
+  const [showTurnHistory, setShowTurnHistory] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ message: string; severity: 'success' | 'error' } | null>(null);
@@ -83,7 +85,7 @@ export function useGroupDetail(groupId: string | undefined) {
   const [selectedParticipant, setSelectedParticipant] = useState<TurnParticipant | null>(null);
   const participantMenuState = useMenuState();
   const iconPickerMenu = useMenuState();
-  
+
   const deleteDialog = useDialogState(() => {
     setTimeout(() => settingsActions.handleConfirmDelete(), DEFER_ACTION_MS);
   });
@@ -97,6 +99,7 @@ export function useGroupDetail(groupId: string | undefined) {
     setTimeout(() => turnActions.handleSkipTurn(), DEFER_ACTION_MS);
   });
   const addParticipantDialog = useDialogState(() => {});
+  const changeNameDialog = useDialogState(() => {}); // New dialog state
 
   useEffect(() => {
     if (groupId && connectionMode === 'live') {
@@ -129,6 +132,11 @@ export function useGroupDetail(groupId: string | undefined) {
       ...sharingActions,
       formatLogEntry,
       setFeedback,
+
+      // New action handler for the name change dialog
+      handleConfirmNameChange: async (newName: string) => {
+        await settingsActions.handleUpdateGroupName(newName);
+      },
 
       handleAdminCompleteTurn: (participantId: string) => {
         participantMenuState.handleClose();
@@ -200,6 +208,11 @@ export function useGroupDetail(groupId: string | undefined) {
     undoDialog,
     skipDialog,
     addParticipantDialog,
+    changeNameDialog, 
     actions: composedActions,
+    showTurnCounts,
+    setShowTurnCounts,
+    showTurnHistory,
+    setShowTurnHistory,
   };
 }

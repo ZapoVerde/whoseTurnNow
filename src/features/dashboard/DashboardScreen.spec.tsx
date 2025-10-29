@@ -1,12 +1,12 @@
 /**
  * @file packages/whoseturnnow/src/features/dashboard/DashboardScreen.spec.tsx
- * @stamp {"ts":"2025-10-25T07:44:00Z"}
+ * @stamp {"ts":"2025-10-29T02:45:00Z"}
  * @test-target packages/whoseturnnow/src/features/dashboard/DashboardScreen.tsx
  * @description
- * Verifies the dashboard correctly displays a list of groups, handles
- * user navigation, and orchestrates the list creation flow.
+ * Verifies the dashboard correctly displays user groups, handles navigation,
+ * and orchestrates core user actions like creating a group and logging out.
  * @criticality
- * Not Critical
+ * Critical (Reason: I/O & Concurrency Management, Security & Authentication Context)
  * @testing-layer Integration
  * @contract
  *   assertions:
@@ -19,17 +19,25 @@ import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Mock } from 'vitest';
+import { signOut } from 'firebase/auth';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MainLayout } from '../../shared/components/layout/MainLayout';
 
 // --- Mocks ---
-vi.mock('react-router-dom', () => ({
-  useNavigate: vi.fn(),
-  Link: vi.fn(({ children, to }) => <a href={to}>{children}</a>),
-}));
+vi.mock('react-router-dom', async () => {
+    const original = await vi.importActual('react-router-dom');
+    return {
+        ...(original as object),
+        useNavigate: vi.fn(),
+    };
+});
 vi.mock('../auth/useAuthStore');
-vi.mock('./repository');
-vi.mock('../groups/CreateListDialog', () => ({
-  CreateListDialog: vi.fn(({ open }) => (open ? <div>Create List Dialog Open</div> : null)),
+vi.mock('../groups/repository');
+// --- THIS IS THE FIX (Part 1) ---
+vi.mock('../groups/CreateGroupDialog', () => ({
+  CreateGroupDialog: vi.fn(({ open }) => (open ? <div>Create Group Dialog Open</div> : null)),
 }));
+// --------------------------------
 
 // --- Imports ---
 import { useNavigate } from 'react-router-dom';
@@ -43,6 +51,7 @@ import type { AppUser } from '../auth/useAuthStore';
 const mockUseNavigate = useNavigate as Mock;
 const mockUseAuthStore = useAuthStore as unknown as Mock;
 const mockGetUserGroups = vi.spyOn(groupsRepository, 'getUserGroups');
+const mockSignOut = vi.mocked(signOut);
 
 const mockUser: AppUser = {
   uid: 'test-user-123',
@@ -55,6 +64,18 @@ const mockGroups: Group[] = [
   { gid: 'group-2', name: 'Second Group', icon: '2️⃣', ownerUid: 'owner-2', participants: [{id: 'p2', uid: 'u2', nickname: 'Bob', role: 'member', turnCount: 2}], turnOrder: ['p2'], participantUids: { [mockUser.uid]: true }, adminUids: {} },
 ];
 
+const renderTestComponent = () => {
+    render(
+        <MemoryRouter initialEntries={['/']}>
+            <Routes>
+                <Route element={<MainLayout />}>
+                    <Route path="/" element={<DashboardScreen />} />
+                </Route>
+            </Routes>
+        </MemoryRouter>
+    );
+};
+
 describe('DashboardScreen', () => {
   const mockNavigate = vi.fn();
 
@@ -63,7 +84,7 @@ describe('DashboardScreen', () => {
     mockUseNavigate.mockReturnValue(mockNavigate);
     mockUseAuthStore.mockImplementation((selector: (state: { user: AppUser | null }) => any) => selector({ user: mockUser }));
     mockGetUserGroups.mockImplementation((_userId, onUpdate) => {
-      onUpdate([]); // Immediately provide empty data to resolve loading state
+      onUpdate([]);
       return () => {};
     });
   });
@@ -75,7 +96,7 @@ describe('DashboardScreen', () => {
       return () => {};
     });
 
-    render(<DashboardScreen />);
+    renderTestComponent();
 
     await act(async () => {
       onUpdateCallback(mockGroups);
@@ -93,7 +114,7 @@ describe('DashboardScreen', () => {
       return () => {};
     });
 
-    render(<DashboardScreen />);
+    renderTestComponent();
     await act(async () => { onUpdateCallback(mockGroups); });
     
     const firstGroupButton = screen.getByText('First Group');
@@ -102,13 +123,28 @@ describe('DashboardScreen', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/group/group-1');
   });
 
-  it('should open the CreateListDialog when the FAB is clicked', async () => {
+  it('should open the CreateGroupDialog when the FAB is clicked', async () => {
     const user = userEvent.setup();
-    render(<DashboardScreen />);
+    renderTestComponent();
 
     const fab = screen.getByRole('button', { name: /add/i });
     await user.click(fab);
 
-    expect(screen.getByText('Create List Dialog Open')).toBeInTheDocument();
-  });  
+    // --- THIS IS THE FIX (Part 2) ---
+    expect(screen.getByText('Create Group Dialog Open')).toBeInTheDocument();
+    // --------------------------------
+  });
+
+  it('should call signOut when the logout menu item is clicked', async () => {
+    const user = userEvent.setup();
+    renderTestComponent();
+
+    const menuButton = screen.getByRole('button', { name: /Account settings/i });
+    await user.click(menuButton);
+
+    const logoutMenuItem = await screen.findByRole('menuitem', { name: /Log Out/i });
+    await user.click(logoutMenuItem);
+
+    expect(mockSignOut).toHaveBeenCalledTimes(1);
+  });
 });

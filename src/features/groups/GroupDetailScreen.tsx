@@ -114,11 +114,14 @@ export const GroupDetailScreen: FC = () => {
             onInviteToClaim={actions.handleTargetedInvite}
             isAdmin={isAdmin}
             isUserTurn={isUserTurn} 
+            showTurnCounts={viewModel.showTurnCounts}
           />
         </Stack>
-        <TurnHistory turnLog={turnLog} formatLogEntry={actions.formatLogEntry} />
+          {viewModel.showTurnHistory && (
+            <TurnHistory turnLog={turnLog} formatLogEntry={actions.formatLogEntry} />
+          )}
       </Stack>
-
+      
       <GroupActionButtons
         isParticipant={!!viewModel.currentUserParticipant}
         onTurnAction={actions.handleTurnAction}

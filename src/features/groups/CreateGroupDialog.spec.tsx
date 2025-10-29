@@ -1,8 +1,8 @@
 /**
- * @file packages/whoseturnnow/src/features/groups/CreateListDialog.spec.tsx
- * @stamp {"ts":"2025-10-25T07:44:00Z"}
- * @test-target packages/whoseturnnow/src/features/groups/CreateListDialog.tsx
- * @description Verifies that the create list dialog correctly captures user input and invokes the repository on submission, resulting in a successful navigation.
+ * @file packages/whoseturnnow/src/features/groups/CreateGroupDialog.spec.tsx
+ * @stamp {"ts":"2025-10-29T03:30:00Z"}
+ * @test-target packages/whoseturnnow/src/features/groups/CreateGroupDialog.tsx
+ * @description Verifies that the create group dialog correctly captures user input and invokes the repository on submission, resulting in a successful navigation.
  * @criticality Critical (Reason: I/O & Concurrency Management)
  * @testing-layer Integration
  */
@@ -18,10 +18,6 @@ vi.mock('react-router-dom', () => ({
 }));
 vi.mock('../auth/useAuthStore');
 vi.mock('./repository');
-// The mock wraps its content in a Dialog component. This ensures that
-// when it's open, it exists in the same modal layer as the main CreateListDialog,
-// making it accessible to testing-library's queries and avoiding the
-// `aria-hidden` issue.
 vi.mock('../../shared/components/EmojiPickerPopover', () => ({
   EmojiPickerPopover: ({ onEmojiSelect, open, onClose }: { onEmojiSelect: (e: string) => void, open: boolean, onClose: () => void }) => {
     if (!open) return null;
@@ -44,7 +40,7 @@ vi.mock('../../shared/components/EmojiPickerPopover', () => ({
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../auth/useAuthStore';
 import { groupsRepository } from './repository';
-import { CreateListDialog } from './CreateListDialog';
+import { CreateGroupDialog } from './CreateGroupDialog'; // Import the renamed component
 import type { AppUser } from '../auth/useAuthStore';
 
 // --- Test Setup ---
@@ -58,7 +54,7 @@ const mockUser: AppUser = {
   isAnonymous: false,
 };
 
-describe('CreateListDialog', () => {
+describe('CreateGroupDialog', () => {
   const mockNavigate = vi.fn();
   const mockOnClose = vi.fn();
 
@@ -71,18 +67,18 @@ describe('CreateListDialog', () => {
 
   it('should call createGroup with correct data and navigate on success', async () => {
     const user = userEvent.setup();
-    render(<CreateListDialog open={true} onClose={mockOnClose} />);
+    render(<CreateGroupDialog open={true} onClose={mockOnClose} />);
 
     const createButton = screen.getByRole('button', { name: /Create/i });
-    const nameInput = screen.getByLabelText(/List Name/i);
+    const nameInput = screen.getByLabelText(/Group Name/i);
+    // -----------------------
     const iconButton = screen.getByRole('button', { name: /select emoji icon/i });
 
     expect(createButton).toBeDisabled();
 
-    await user.type(nameInput, 'My Awesome List');
+    await user.type(nameInput, 'My Awesome Group');
     await user.click(iconButton);
 
-    // Now this button will be found because it's in an accessible dialog
     const mockEmojiButton = await screen.findByRole('button', { name: /Mock Emoji Select/i });
     await user.click(mockEmojiButton);
 
@@ -94,7 +90,7 @@ describe('CreateListDialog', () => {
 
     await waitFor(() => {
       expect(mockCreateGroup).toHaveBeenCalledWith({
-        name: 'My Awesome List',
+        name: 'My Awesome Group',
         icon: '🧪',
         creator: mockUser,
       });
