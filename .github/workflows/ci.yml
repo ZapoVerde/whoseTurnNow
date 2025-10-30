@@ -1,29 +1,30 @@
-# @file .github/workflows/deploy.yml
-# @stamp {"ts":"2025-10-30T15:51:00Z"}
+# @file .github/workflows/ci.yml
+# @stamp {"ts":"2025-10-30T22:55:00Z"}
 # @architectural-role Configuration
-# @description Defines the CI/CD pipeline for deploying the "Whose Turn Now" application to Firebase Hosting.
+# @description Defines the Continuous Integration (CI) pipeline. It runs on every push and pull request to ensure code quality by linting, building, and running the full test suite.
 # @core-principles
-#   1. IS the single source of truth for the production deployment process.
-#   2. MUST only trigger on pushes to the `main` branch to protect production.
-#   3. OWNS the responsibility for building the application and deploying the artifacts to Firebase.
+#   1. IS the single source of truth for the project's automated quality checks.
+#   2. MUST run on every push and pull request to the `main` branch.
+#   3. OWNS the responsibility for verifying the integrity of the codebase before deployment.
 # @api-declaration
 #   - Not applicable. This is a workflow triggered by GitHub repository events.
 # @contract
 #   assertions:
 #     purity: pure # This file is declarative configuration.
 #     state_ownership: none
-#     external_io: https_apis # Interacts with GitHub Actions and Firebase.
+#     external_io: https_apis # Interacts with GitHub Actions.
 
-name: 'Deploy Whose Turn Now to Firebase'
+name: 'Whose Turn Now CI'
 
 on:
   push:
-    branches:
-      - main # This workflow only runs on pushes to the main branch
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
-  build_and_deploy:
-    name: 'Build and Deploy'
+  build_and_test:
+    name: 'Build, Lint, and Test'
     runs-on: ubuntu-latest
 
     steps:
@@ -31,32 +32,31 @@ jobs:
       - name: 'Checkout code'
         uses: actions/checkout@v4
 
-      # Step 2: Set up pnpm
+      # Step 2: Set up pnpm, our package manager
       - name: 'Set up pnpm'
         uses: pnpm/action-setup@v2
         with:
-          version: 8
+          version: 8 # Use a recent version of pnpm
 
-      # Step 3: Set up Node.js
+      # Step 3: Set up the correct version of Node.js
       - name: 'Set up Node.js'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
+          cache: 'pnpm' # Cache our dependencies for faster runs
 
       # Step 4: Install all project dependencies
       - name: 'Install dependencies'
         run: pnpm install
 
-      # Step 5: Run the build command for the application
+      # Step 5: Run the linter to ensure code style is consistent.
+      - name: 'Run linter'
+        run: pnpm lint
+
+      # Step 6: Run the build command to ensure the code is valid.
       - name: 'Run build'
         run: pnpm build
 
-      # Step 6: Deploy to Firebase Hosting
-      - name: 'Deploy to Firebase'
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_WHOSETURNNOW }}'
-          channelId: live
-          projectId: 'your-whoseturnnow'
+      # Step 7: Run the test suite to ensure our business logic is correct.
+      - name: 'Run tests'
+        run: pnpm test
