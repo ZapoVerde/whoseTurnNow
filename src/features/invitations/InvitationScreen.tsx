@@ -20,7 +20,7 @@
  *     external_io: firestore
  */
 
-import { useState, useEffect, type FC } from 'react';
+import { useState, useEffect, useRef, type FC } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import Container from '@mui/material/Container';
 import Box from '@mui/material/Box';
@@ -42,40 +42,49 @@ export const InvitationScreen: FC = () => {
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // This single, consolidated effect is the core of the solution.
-  // It waits for authentication to be complete before attempting any action.
+  // ARCHITECTURAL FIX: This ref acts as a "gatekeeper". Its purpose is to
+  // ensure that the join logic is only attempted ONCE. Unlike state, changing
+  // a ref does not trigger a component re-render, which is the key to
+  // breaking the infinite loop.
+  const hasAttemptedJoin = useRef(false);
+
   useEffect(() => {
-    // 1. Wait until the user is fully authenticated and we have a groupId.
-    if (status !== 'authenticated' || !user || !groupId || isJoining) {
+    // The guard clause now checks for three things:
+    // 1. Is the user fully authenticated?
+    // 2. Do we have all the necessary info?
+    // 3. Have we ALREADY tried to run this logic? (The Gatekeeper)
+    if (status !== 'authenticated' || !user || !groupId || hasAttemptedJoin.current) {
       return;
     }
 
     const joinGroup = async () => {
+      // Set the gatekeeper flag to true immediately. This is the "lock" that
+      // prevents the effect from ever running this logic again, even if the
+      // component re-renders for any reason.
+      hasAttemptedJoin.current = true;
       setIsJoining(true);
       setError(null);
+      
       try {
-        // Step 1: Perform the WRITE operation first. This makes the user a member.
         if (participantId) {
           await groupsRepository.claimPlaceholder(groupId, participantId, user);
         } else {
           await groupsRepository.joinGroupAsNewParticipant(groupId, user);
         }
-        // Step 2: On success, redirect. The destination screen is responsible for all reads.
+        // On success, we navigate away. The component unmounts.
         navigate(`/group/${groupId}`, { replace: true });
-      } catch (err: any) {
-        // This catch block will now correctly handle errors from the join operation itself,
-        // such as trying to claim an already-claimed spot.
-        setError(
-          err.message || 'Could not join the group. The link may be invalid.',
-        );
-      } finally {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Could not join the group. The link may be invalid.';
+        setError(message);
         setIsJoining(false);
       }
     };
 
     joinGroup();
-  //}, [status, user, groupId, participantId, navigate, isJoining]);
-    }, [status, user, groupId, participantId, navigate]);
+  // The dependency array is now correct and stable. It only contains external
+  // dependencies. The linter is satisfied, and the loop is gone.
+  }, [status, user, groupId, participantId, navigate]);
+  
   if (error) {
     return (
       <Container component="main" maxWidth="xs" sx={{ mt: 8, textAlign: 'center' }}>
@@ -87,15 +96,23 @@ export const InvitationScreen: FC = () => {
     );
   }
 
-  if (status === 'initializing') {
+  if (status === 'initializing' || isJoining) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+        }}
+      >
         <CircularProgress />
+        <Typography sx={{ mt: 2 }}>Joining list...</Typography>
       </Box>
     );
   }
 
-  // Funnel unauthenticated users to the login screen with a generic message.
   if (status === 'unauthenticated') {
     return (
       <Container component="main" maxWidth="xs" sx={{ mt: 4, textAlign: 'center' }}>
@@ -110,7 +127,6 @@ export const InvitationScreen: FC = () => {
     );
   }
 
-  // Funnel brand-new users to the handshake screen.
   if (status === 'new-user') {
     return (
       <Container component="main" maxWidth="xs" sx={{ mt: 4, textAlign: 'center' }}>
@@ -122,19 +138,6 @@ export const InvitationScreen: FC = () => {
     );
   }
 
-  // This view is shown while the join operation is in progress after authentication is complete.
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-      }}
-    >
-      <CircularProgress />
-      <Typography sx={{ mt: 2 }}>Joining list...</Typography>
-    </Box>
-  );
+  // Fallback content in case the effect hasn't run yet.
+  return null;
 };

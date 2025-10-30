@@ -21,20 +21,16 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act } from '@testing-library/react';
-import type { Mock } from 'vitest';
 
 // --- Mocks ---
-// --- FIX: Update the mock path to the new repository module ---
 vi.mock('./repository');
 
 // --- Imports ---
 import { useGroupStore } from './useGroupStore';
-// --- FIX: Import the unified repository object ---
 import { groupsRepository } from './repository';
 import type { Group, LogEntry } from '../../types/group';
 
 // --- Test Setup ---
-// --- FIX: Get typed mocks from the repository object ---
 const mockGetGroup = vi.mocked(groupsRepository.getGroup);
 const mockGetGroupTurnLog = vi.mocked(groupsRepository.getGroupTurnLog);
 
@@ -59,6 +55,9 @@ const mockTurnLog: (LogEntry & { id: string })[] = [
     actorUid: 'u-1',
     actorName: 'Alice',
     _participantUids: {},
+    // THIS IS THE FIX: Add the missing '_adminUids' property to match the
+    // official TurnCompletedLog type definition.
+    _adminUids: {},
   },
 ];
 

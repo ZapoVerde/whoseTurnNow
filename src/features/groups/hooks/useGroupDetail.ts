@@ -111,9 +111,10 @@ export function useGroupDetail(groupId: string | undefined) {
   const composedActions = useMemo(() => {
     const formatLogEntry = (log: LogEntry) => {
       switch (log.type) {
-        case 'TURN_COMPLETED':
+        case 'TURN_COMPLETED': {
           const byActor = log.actorUid !== log.participantId ? ` by ${log.actorName}` : '';
           return `${log.participantName}'s turn was completed${byActor}.`;
+        }
         case 'TURN_SKIPPED':
           return `${log.participantName} skipped their turn.`;
         case 'COUNTS_RESET':
