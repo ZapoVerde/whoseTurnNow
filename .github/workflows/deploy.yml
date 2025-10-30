@@ -1,4 +1,18 @@
-# .github/workflows/deploy.yml
+# @file .github/workflows/deploy.yml
+# @stamp {"ts":"2025-10-30T16:05:00Z"}
+# @architectural-role Configuration
+# @description Defines the CI/CD pipeline for deploying the "Whose Turn Now" application to Firebase Hosting.
+# @core-principles
+#   1. IS the single source of truth for the production deployment process.
+#   2. MUST only trigger on pushes to the `main` branch to protect production.
+#   3. OWNS the responsibility for building the application and deploying the artifacts to Firebase.
+# @api-declaration
+#   - Not applicable. This is a workflow triggered by GitHub repository events.
+# @contract
+#   assertions:
+#     purity: pure # This file is declarative configuration.
+#     state_ownership: none
+#     external_io: https_apis # Interacts with GitHub Actions and Firebase.
 
 name: 'Deploy Whose Turn Now to Firebase'
 
@@ -35,8 +49,19 @@ jobs:
         run: pnpm install
 
       # Step 5: Run the build command for the application
+      # This step injects the public Firebase config from GitHub Secrets
+      # into the build process.
       - name: 'Run build'
-        run: pnpm --filter @aianvil/whoseturnnow build
+        run: pnpm build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          # Explicitly disable logging for production builds.
+          VITE_LOGGING_ENABLED: 'false'
 
       # Step 6: Deploy to Firebase Hosting
       - name: 'Deploy to Firebase'
@@ -45,4 +70,4 @@ jobs:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_WHOSETURNNOW }}'
           channelId: live
-          projectId: 'your-whoseturnnow' 
+          projectId: 'whoseturnnow' 

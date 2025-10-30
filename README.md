@@ -1,7 +1,6 @@
-
 # Whose Turn Now
 
-[![Whose Turn Now CI](https://github.com/[YOUR_GITHUB_USERNAME]/[YOUR_REPO_NAME]/actions/workflows/ci.yml/badge.svg)](https://github.com/[YOUR_GITHUB_USERNAME]/[YOUR_REPO_NAME]/actions/workflows/ci.yml)
+[![Whose Turn Now CI](https://github.com/ZapoVerde/whoseTurnNow/actions/workflows/ci.yml/badge.svg)](https://github.com/ZapoVerde/whoseTurnNow/actions/workflows/ci.yml)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 [![Code Style: ESLint](https://img.shields.io/badge/code%20style-ESLint-563d7c.svg)](https://eslint.org/)
 
@@ -44,50 +43,6 @@ A lightweight, real-time, open-source utility for tracking whose turn it is. Man
 
 ## Getting Started
 
-This project is part of a monorepo. To run it locally, follow these steps from the repository root:
+To run this project locally, follow these steps from the repository root:
 
-**1. Clone the repository:**
-```bash
-git clone https://github.com/your-username/your-monorepo.git
-cd your-monorepo
-```
-
-**2. Install dependencies:**
-```bash
-pnpm install
-```
-
-**3. Set up your Firebase project:**
-*   Create a new project in the [Firebase Console](https://console.firebase.google.com/).
-*   Enable **Authentication** (Email/Password and Google providers).
-*   Enable **Firestore Database**.
-*   In your project settings, create a new Web App and copy the Firebase configuration object.
-
-**4. Create an environment file:**
-*   In the `packages/whoseturnnow` directory, create a file named `.env`.
-*   Add your Firebase configuration to the `.env` file using the Vite environment variable format:
-    ```
-    VITE_FIREBASE_API_KEY="your-api-key"
-    VITE_FIREBASE_AUTH_DOMAIN="your-auth-domain"
-    VITE_FIREBASE_PROJECT_ID="your-project-id"
-    VITE_FIREBASE_STORAGE_BUCKET="your-storage-bucket"
-    VITE_FIREBASE_MESSAGING_SENDER_ID="your-messaging-sender-id"
-    VITE_FIREBASE_APP_ID="your-app-id"
-
-    # (Optional) Set to 'true' to enable detailed console logging in development.
-    VITE_LOGGING_ENABLED=true
-    ```
-
-**5. Run the development server:**
-```bash
-pnpm --filter @aianvil/whoseturnnow dev
-```
-The application will be running at `http://localhost:5173`.
-
-## Contributing
-
-This project is currently developed following a focused roadmap for its Version 1 release. While the source is open, we are not actively seeking community pull requests at this time. However, suggestions and bug reports are welcome via the repository's "Issues" tab.
-
-## License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+**1. Clone the rep
