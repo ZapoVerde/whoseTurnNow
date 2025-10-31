@@ -48,6 +48,15 @@ jobs:
       - name: 'Install dependencies'
         run: pnpm install
 
+      - name: 'Debug: Verify Secrets are Present'
+        run: |
+          if [ -z "${{ secrets.VITE_FIREBASE_API_KEY }}" ]; then
+            echo "Error: VITE_FIREBASE_API_KEY secret is not found or is empty."
+            exit 1
+          else
+            echo "VITE_FIREBASE_API_KEY is present."
+          fi
+
       # Step 5: Run the build command for the application
       # This step injects the public Firebase config from GitHub Secrets
       # into the build process.
